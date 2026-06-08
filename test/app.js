@@ -3,6 +3,8 @@ const SHEETS = {
   cs: "CS DB",
   inventoryTurnover: "제품회전율",
 };
+const PUBLIC_SHEET_JSONP_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+const SHEET_FETCH_TIMEOUT_MS = 20000;
 const TEAM_SHEETS = [
   { match: "영업1팀", name: "영업1팀", sheet: "영업1팀목표DB" },
   { match: "영업2팀", name: "영업2팀", sheet: "영업2팀목표DB" },
@@ -195,13 +197,54 @@ async function loadDashboard() {
 }
 
 async function fetchSheet(sheetName) {
-  if (!window.SnowlineAuth?.request) {
-    throw new Error("로그인 서버가 연결되지 않았습니다.");
+  const data = await loadSheetJsonp(sheetName);
+  if (data.status !== "ok") {
+    const detail = data.errors?.map((error) => error.detailed_message || error.message).filter(Boolean).join(" / ");
+    throw new Error(detail || `${sheetName} 시트를 불러오지 못했습니다.`);
   }
+  return tableToRows(data.table);
+}
 
-  const result = await window.SnowlineAuth.request({ action: "sheet", sheetName });
-  if (!result?.csv) throw new Error(`${sheetName} 데이터가 비어 있습니다.`);
-  return parseCsv(result.csv);
+function loadSheetJsonp(sheetName) {
+  const callbackName = `snowlineSheet_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const url = `${PUBLIC_SHEET_JSONP_BASE_URL}?tqx=out:json;responseHandler:${callbackName}&headers=0&sheet=${encodeURIComponent(sheetName)}`;
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      script.remove();
+      delete window[callbackName];
+    };
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("구글시트 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요."));
+    }, SHEET_FETCH_TIMEOUT_MS);
+
+    window[callbackName] = (payload) => {
+      cleanup();
+      resolve(payload);
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error(`${sheetName} 시트 공개 범위를 확인해주세요.`));
+    };
+    script.src = url;
+    document.head.appendChild(script);
+  });
+}
+
+function tableToRows(table = {}) {
+  const columns = table.cols || [];
+  return (table.rows || []).map((row) =>
+    columns.map((_, index) => {
+      const cell = row.c?.[index];
+      if (!cell) return "";
+      if (cell.f != null) return String(cell.f).trim();
+      if (cell.v == null) return "";
+      return String(cell.v).trim();
+    }),
+  );
 }
 
 function formatLoadError(error) {
