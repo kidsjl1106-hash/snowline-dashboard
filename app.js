@@ -167,6 +167,11 @@ async function loadDashboard() {
   }
 
   const hasData = state.cs.length || state.inventoryProducts.length || state.teams.length;
+  if (hasAuthLoadError(errors) && window.SnowlineAuth?.invalidate) {
+    window.SnowlineAuth.invalidate("관리자 승인이 완료된 뒤 다시 로그인해주세요. 이미 승인했다면 로그아웃 후 다시 로그인해주세요.");
+    return;
+  }
+
   if (errors.length) {
     console.error("Sheet load errors", errors);
     setStatus("error", buildLoadErrorMessage(errors, hasData), "오류");
@@ -203,6 +208,10 @@ function buildLoadErrorMessage(errors, hasData) {
   return hasData
     ? `일부 구글시트를 불러오지 못했습니다. ${detail}${suffix}`
     : `구글시트 데이터를 불러오지 못했습니다. ${detail}${suffix}`;
+}
+
+function hasAuthLoadError(errors) {
+  return errors.some((message) => /승인된 계정|관리자 승인|세션|로그인/.test(message));
 }
 
 function parseCsv(text) {

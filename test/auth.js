@@ -9,6 +9,7 @@
     required: true,
     getSession: () => session,
     request: authenticatedRequest,
+    invalidate: invalidateSession,
     logout,
   };
 
@@ -160,9 +161,7 @@
       const result = await callApi({ action: "me", token });
       saveAndUnlock({ token, user: result.user });
     } catch (error) {
-      removeStoredSession();
-      showLogin();
-      setMessage(document.querySelector("#auth-message"), "세션이 만료되었습니다. 다시 로그인해주세요.");
+      invalidateSession(error.message || "세션이 만료되었습니다. 다시 로그인해주세요.");
     }
   }
 
@@ -236,6 +235,17 @@
     session = null;
     removeStoredSession();
     window.location.reload();
+  }
+
+  function invalidateSession(message = "세션이 만료되었습니다. 다시 로그인해주세요.") {
+    session = null;
+    removeStoredSession();
+    document.body.classList.add("auth-locked");
+    document.body.classList.remove("auth-ready", "auth-admin");
+    document.querySelector("#auth-user-bar")?.remove();
+    renderAuthShell();
+    showLogin();
+    setMessage(document.querySelector("#auth-message"), message);
   }
 
   function readSession() {
