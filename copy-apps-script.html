@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SNOWLINE Apps Script 복사</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #ffffff;
+        color: #111827;
+        font-family: Arial, "Noto Sans KR", sans-serif;
+      }
+
+      main {
+        width: min(980px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 32px 0;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 26px;
+      }
+
+      p {
+        margin: 0 0 18px;
+        color: #6b7280;
+        line-height: 1.6;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      button {
+        min-height: 42px;
+        border: 1px solid #f97316;
+        border-radius: 8px;
+        padding: 0 16px;
+        background: #f97316;
+        color: #ffffff;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: #ffffff;
+        color: #f97316;
+      }
+
+      .guide {
+        margin: 0 0 16px;
+        padding: 14px 16px;
+        border: 1px solid rgba(249, 115, 22, 0.28);
+        border-radius: 8px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .status {
+        min-height: 22px;
+        margin-bottom: 12px;
+        color: #15803d;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 68vh;
+        border: 1px solid rgba(17, 24, 39, 0.18);
+        border-radius: 8px;
+        padding: 16px;
+        color: #111827;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Apps Script 코드 전체 복사</h1>
+      <p>
+        Apps Script가 긴 코드를 100줄까지만 붙여넣는 경우가 있어,
+        기본값은 <strong>100줄 이하 압축 코드</strong>로 준비했습니다.
+      </p>
+      <div class="guide">
+        Apps Script의 Code.gs에서 Ctrl+A, Delete 후 아래 압축 코드를 붙여넣으세요.
+        한 줄로 보여도 정상 코드입니다.
+      </div>
+      <div class="actions">
+        <button id="copy-button" type="button">압축 코드 복사</button>
+        <button id="compact-button" class="secondary" type="button">압축 코드 보기</button>
+        <button id="original-button" class="secondary" type="button">원본 코드 보기</button>
+        <button id="select-button" class="secondary" type="button">텍스트 전체 선택</button>
+      </div>
+      <div class="status" id="status">코드를 불러오는 중입니다.</div>
+      <textarea id="code" spellcheck="false"></textarea>
+    </main>
+
+    <script>
+      const codeBox = document.querySelector("#code");
+      const status = document.querySelector("#status");
+      let originalCode = "";
+      let compactCode = "";
+      let currentMode = "compact";
+
+      fetch("./google-apps-script/Code.gs")
+        .then((response) => {
+          if (!response.ok) throw new Error("Code.gs를 불러오지 못했습니다.");
+          return response.text();
+        })
+        .then((text) => {
+          originalCode = text.replace(/^\uFEFF/, "");
+          compactCode = compactAppsScript(originalCode);
+          setCodeMode("compact");
+        })
+        .catch((error) => {
+          status.textContent = error.message;
+          status.style.color = "#dc2626";
+        });
+
+      document.querySelector("#copy-button").addEventListener("click", async () => {
+        codeBox.focus();
+        codeBox.select();
+        try {
+          await navigator.clipboard.writeText(codeBox.value);
+          status.textContent = `복사 완료: ${lineCount(codeBox.value)}줄 ${modeLabel()} 코드`;
+          status.style.color = "#15803d";
+        } catch (error) {
+          document.execCommand("copy");
+          status.textContent = "복사했습니다. Apps Script에 붙여넣으세요.";
+          status.style.color = "#15803d";
+        }
+      });
+
+      document.querySelector("#compact-button").addEventListener("click", () => {
+        setCodeMode("compact");
+      });
+
+      document.querySelector("#original-button").addEventListener("click", () => {
+        setCodeMode("original");
+      });
+
+      document.querySelector("#select-button").addEventListener("click", () => {
+        codeBox.focus();
+        codeBox.select();
+        status.textContent = "선택 완료: Ctrl+C로 복사하세요.";
+        status.style.color = "#15803d";
+      });
+
+      function setCodeMode(mode) {
+        currentMode = mode;
+        codeBox.value = mode === "original" ? originalCode : compactCode;
+        document.querySelector("#copy-button").textContent = `${modeLabel()} 코드 복사`;
+        status.textContent = `준비 완료: ${modeLabel()} 코드 ${lineCount(codeBox.value)}줄`;
+        status.style.color = "#15803d";
+      }
+
+      function compactAppsScript(source) {
+        return source
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .join(" ");
+      }
+
+      function lineCount(value) {
+        return value ? value.split(/\r?\n/).length : 0;
+      }
+
+      function modeLabel() {
+        return currentMode === "original" ? "원본" : "압축";
+      }
+    </script>
+  </body>
+</html>
