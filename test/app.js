@@ -142,26 +142,50 @@ function initBuildInfo() {
 async function loadDashboard() {
   setStatus("loading", "구글시트 데이터를 불러오는 중입니다.", "연결중");
 
-  try {
-    const [csRows, inventoryRows, teamDetails] = await Promise.all([
-      fetchSheet(SHEETS.cs),
-      fetchSheet(SHEETS.inventoryTurnover),
-      fetchTeamDetails(),
-    ]);
+  const errors = [];
+  const [csResult, inventoryResult, teamDetailsResult] = await Promise.allSettled([
+    fetchSheet(SHEETS.cs),
+    fetchSheet(SHEETS.inventoryTurnover),
+    fetchTeamDetails(),
+  ]);
 
-    state.inventoryProducts = parseInventoryProducts(inventoryRows);
-    state.inventory = parseInventory(state.inventoryProducts);
-    state.teamDetails = teamDetails;
-    state.teams = buildTeamsFromDetails(teamDetails);
-    state.products = parseInventoryRanking(state.inventoryProducts);
-    state.cs = parseCs(csRows);
-
-    setStatus("ready", `${new Date().toLocaleString("ko-KR")} 기준으로 갱신되었습니다.`, "연결됨");
-    render();
-  } catch (error) {
-    console.error(error);
-    setStatus("error", "구글시트 데이터를 불러오지 못했습니다. 시트 공개 범위와 네트워크를 확인해주세요.", "오류");
+  if (csResult.status === "fulfilled") {
+    state.cs = parseCs(csResult.value);
+  } else {
+    state.cs = [];
+    errors.push(`${SHEETS.cs}: ${formatLoadError(csResult.reason)}`);
   }
+
+  if (inventoryResult.status === "fulfilled") {
+    state.inventoryProducts = parseInventoryProducts(inventoryResult.value);
+    state.inventory = parseInventory(state.inventoryProducts);
+    state.products = parseInventoryRanking(state.inventoryProducts);
+  } else {
+    state.inventoryProducts = [];
+    state.inventory = [];
+    state.products = [];
+    errors.push(`${SHEETS.inventoryTurnover}: ${formatLoadError(inventoryResult.reason)}`);
+  }
+
+  if (teamDetailsResult.status === "fulfilled") {
+    state.teamDetails = teamDetailsResult.value;
+    state.teams = buildTeamsFromDetails(teamDetailsResult.value);
+    const teamErrors = teamDetailsResult.value?._errors || [];
+    errors.push(...teamErrors.map((message) => `팀 목표: ${message}`));
+  } else {
+    state.teamDetails = {};
+    state.teams = [];
+    errors.push(`팀 목표: ${formatLoadError(teamDetailsResult.reason)}`);
+  }
+
+  const hasData = state.cs.length || state.inventoryProducts.length || state.teams.length;
+  if (errors.length) {
+    console.error("Sheet load errors", errors);
+    setStatus("error", buildLoadErrorMessage(errors, hasData), "오류");
+  } else {
+    setStatus("ready", `${new Date().toLocaleString("ko-KR")} 기준으로 갱신되었습니다.`, "연결됨");
+  }
+  render();
 }
 
 async function fetchSheet(sheetName) {
@@ -172,6 +196,25 @@ async function fetchSheet(sheetName) {
   const result = await window.SnowlineAuth.request({ action: "sheet", sheetName });
   if (!result?.csv) throw new Error(`${sheetName} 데이터가 비어 있습니다.`);
   return parseCsv(result.csv);
+}
+
+function formatLoadError(error) {
+  const message = error?.message || String(error || "알 수 없는 오류");
+  if (/세션|승인|로그인/.test(message)) {
+    return `${message} 관리자 승인 상태를 확인한 뒤 다시 로그인해주세요.`;
+  }
+  return message;
+}
+
+function buildLoadErrorMessage(errors, hasData) {
+  const detail = errors.slice(0, 3).join(" / ");
+  const suffix = errors.length > 3 ? ` 외 ${errors.length - 3}건` : "";
+  if (errors.some((message) => /세션|승인|로그인/.test(message))) {
+    return `로그인 세션 또는 회원 승인 상태를 확인해주세요. ${detail}${suffix}`;
+  }
+  return hasData
+    ? `일부 구글시트를 불러오지 못했습니다. ${detail}${suffix}`
+    : `구글시트 데이터를 불러오지 못했습니다. ${detail}${suffix}`;
 }
 
 function parseCsv(text) {
@@ -258,16 +301,21 @@ async function fetchTeamDetails() {
       updatedAt: new Date().toISOString(),
     })),
   );
-  return TEAM_SHEETS.reduce((details, team, index) => {
+  const errors = [];
+  const details = TEAM_SHEETS.reduce((details, team, index) => {
     if (results[index].status === "fulfilled") {
       details[team.match] = {
         name: team.name,
         updatedAt: results[index].value.updatedAt,
         ...parseTeamDetail(results[index].value.rows),
       };
+    } else {
+      errors.push(`${team.name}: ${formatLoadError(results[index].reason)}`);
     }
     return details;
   }, {});
+  Object.defineProperty(details, "_errors", { value: errors, enumerable: false });
+  return details;
 }
 
 function buildTeamsFromDetails(teamDetails = {}) {
