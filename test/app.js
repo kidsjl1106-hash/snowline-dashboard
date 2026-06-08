@@ -37,6 +37,7 @@ const state = {
   inventoryProducts: [],
   cs: [],
 };
+let dashboardStarted = false;
 
 const els = {
   sheetStatus: document.querySelector("#sheet-status"),
@@ -125,16 +126,20 @@ document.addEventListener("click", (event) => {
 
 if (window.SnowlineAuth?.required) {
   setStatus("idle", "로그인 후 구글시트 데이터를 불러옵니다.", "로그인 필요");
-  window.addEventListener(
-    "snowline:authenticated",
-    (event) => {
-      setupAdminView(event.detail);
-      loadDashboard();
-    },
-    { once: true },
-  );
+  window.addEventListener("snowline:authenticated", (event) => {
+    startDashboard(event.detail);
+  });
+  const currentSession = window.SnowlineAuth.getSession?.();
+  if (currentSession?.user) startDashboard(currentSession.user);
 } else {
   setStatus("error", "로그인 모듈을 불러오지 못했습니다. auth.js 설정을 확인해주세요.", "인증 오류");
+}
+
+function startDashboard(user) {
+  if (dashboardStarted) return;
+  dashboardStarted = true;
+  setupAdminView(user);
+  loadDashboard();
 }
 
 function initBuildInfo() {
