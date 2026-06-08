@@ -115,6 +115,7 @@ document.addEventListener("click", (event) => {
 });
 
 if (window.SnowlineAuth?.required) {
+  setStatus("idle", "로그인 후 구글시트 데이터를 불러옵니다.", "로그인 필요");
   window.addEventListener(
     "snowline:authenticated",
     (event) => {

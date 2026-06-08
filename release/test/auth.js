@@ -3,6 +3,7 @@
   const apiUrl = String(config.apiUrl || "").trim();
   const sessionKey = config.sessionKey || "snowline_dashboard_session";
   const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
+  const requestTimeoutMs = Number(config.requestTimeoutMs || 15000);
   let session = null;
 
   window.SnowlineAuth = {
@@ -175,26 +176,42 @@
       throw new Error("로그인 서버 주소가 아직 설정되지 않았습니다. auth-config.js의 apiUrl을 입력해주세요.");
     }
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-      redirect: "follow",
-    });
-
-    const text = await response.text();
-    let result;
     try {
-      result = JSON.parse(text);
+      const response = await fetchWithTimeout(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        redirect: "follow",
+      });
+
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (error) {
+        throw new Error("로그인 서버 응답을 읽을 수 없습니다.");
+      }
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "요청을 처리하지 못했습니다.");
+      }
+
+      return result;
     } catch (error) {
-      throw new Error("로그인 서버 응답을 읽을 수 없습니다.");
+      if (error?.name === "AbortError") {
+        throw new Error("서버 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요.");
+      }
+      throw error;
     }
+  }
 
-    if (!response.ok || !result.ok) {
-      throw new Error(result.error || "요청을 처리하지 못했습니다.");
-    }
-
-    return result;
+  function fetchWithTimeout(url, options) {
+    if (typeof AbortController === "undefined") return fetch(url, options);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), requestTimeoutMs);
+    return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+      window.clearTimeout(timeoutId);
+    });
   }
 
   function saveAndUnlock(result) {
