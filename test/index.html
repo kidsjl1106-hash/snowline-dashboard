@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SNOWLINE 영업 대시보드 | GitHub Upload</title>
+    <link rel="icon" href="./assets/logo.png?v=2026060701" />
+    <link rel="stylesheet" href="./auth.css?v=2026060701" />
+    <link rel="stylesheet" href="./styles.css?v=2026060801" />
+  </head>
+  <body class="auth-locked">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img class="brand-logo" src="./assets/logo.png?v=2026060701" alt="SNOWLINE" />
+          <div>
+            <strong>SNOWLINE</strong>
+            <span>Sales Dashboard</span>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" aria-label="대시보드 메뉴">
+          <button class="nav-tab active" data-view="overview" type="button">
+            <span>Overview</span>
+            <small>통합 현황</small>
+          </button>
+          <button class="nav-tab" data-view="sales" type="button">
+            <span>Sales</span>
+            <small>목표 달성률</small>
+          </button>
+          <button class="nav-tab" data-view="products" type="button">
+            <span>Products</span>
+            <small>재고금액 상위</small>
+          </button>
+          <button class="nav-tab" data-view="cs" type="button">
+            <span>CS</span>
+            <small>상담 DB</small>
+          </button>
+          <button class="nav-tab admin-only" data-view="members" type="button">
+            <span>Members</span>
+            <small>회원 관리</small>
+          </button>
+        </nav>
+
+        <div class="sheet-note">
+          <span>Google Sheets</span>
+          <strong id="sheet-status">연결 준비중</strong>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <div class="title-row">
+              <p class="eyebrow">SNOWLINE 영업 대시보드</p>
+              <span class="deploy-badge">GitHub Upload</span>
+            </div>
+            <h1>구글시트 연동 통합 현황</h1>
+            <p class="deploy-meta" id="build-version">GitHub 업로드 테스트 · 2026.06.07</p>
+          </div>
+          <div class="top-actions">
+            <label class="search-box">
+              <span>검색</span>
+              <input id="search-input" type="search" placeholder="제품명, 코드, 팀, 고객명" />
+            </label>
+            <button id="refresh-button" class="refresh-button" type="button">새로고침</button>
+          </div>
+        </header>
+
+        <section class="status-strip" id="status-strip">
+          <span class="status-dot"></span>
+          <span id="last-updated">데이터를 불러오는 중입니다.</span>
+        </section>
+
+        <section class="kpi-grid" id="kpi-grid" aria-label="핵심 지표"></section>
+
+        <section class="content-view active" data-panel="overview">
+          <div class="section-grid">
+            <article class="panel wide">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Achievement</p>
+                  <h2>팀별 목표 달성률</h2>
+                </div>
+              </div>
+              <div class="bar-list" id="team-bars"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Inventory</p>
+                  <h2>재고 트리거</h2>
+                </div>
+              </div>
+              <div class="inventory-grid" id="inventory-grid"></div>
+            </article>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Target Detail</p>
+                <h2>월간 / 연간 목표달성률</h2>
+              </div>
+            </div>
+            <div class="month-toggle" id="month-toggle" aria-label="월간 목표달성률 조회 월 선택"></div>
+            <div class="achievement-table-grid">
+              <section class="achievement-table-card">
+                <h3 id="monthly-achievement-title">월간 목표달성률</h3>
+                <div class="table-wrap compact-table-wrap">
+                  <table class="compact-table">
+                    <thead>
+                      <tr>
+                        <th>팀</th>
+                        <th>목표</th>
+                        <th>실적</th>
+                        <th>달성률</th>
+                      </tr>
+                    </thead>
+                    <tbody id="monthly-achievement-body"></tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="achievement-table-card">
+                <h3>연간 목표달성률</h3>
+                <div class="table-wrap compact-table-wrap">
+                  <table class="compact-table">
+                    <thead>
+                      <tr>
+                        <th>팀</th>
+                        <th>목표</th>
+                        <th>실적</th>
+                        <th>달성률</th>
+                      </tr>
+                    </thead>
+                    <tbody id="annual-achievement-body"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Ranking</p>
+                <h2>재고금액 상위 제품</h2>
+              </div>
+              <div class="sort-control" aria-label="제품 정렬">
+                <button class="active" type="button" data-product-sort="amount-desc">재고금액순</button>
+                <button type="button" data-product-sort="turnover-desc">회전율 높은순</button>
+                <button type="button" data-product-sort="turnover-asc">회전율 낮은순</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>순위</th>
+                    <th>제품코드</th>
+                    <th>제품명</th>
+                    <th>회전율</th>
+                    <th>현재고</th>
+                    <th>재고금액</th>
+                  </tr>
+                </thead>
+                <tbody id="top-products-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="sales">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Sales Target</p>
+                <h2>팀별 매출목표 대비 실적</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>팀</th>
+                    <th>목표</th>
+                    <th>실적</th>
+                    <th>달성률</th>
+                    <th>진행률</th>
+                  </tr>
+                </thead>
+                <tbody id="sales-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="products">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Products</p>
+                <h2>제품별 재고금액 랭킹</h2>
+              </div>
+              <div class="sort-control" aria-label="제품 정렬">
+                <button class="active" type="button" data-product-sort="amount-desc">재고금액순</button>
+                <button type="button" data-product-sort="turnover-desc">회전율 높은순</button>
+                <button type="button" data-product-sort="turnover-asc">회전율 낮은순</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>순위</th>
+                    <th>제품코드</th>
+                    <th>제품명</th>
+                    <th>회전율</th>
+                    <th>현재고</th>
+                    <th>재고금액</th>
+                  </tr>
+                </thead>
+                <tbody id="products-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="cs">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Customer Service</p>
+                <h2>CS 상담 현황</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>상담일시</th>
+                    <th>채널</th>
+                    <th>고객명</th>
+                    <th>제품구분</th>
+                    <th>제품명</th>
+                    <th>상담내용</th>
+                    <th>총 청구비용</th>
+                    <th>상담자</th>
+                  </tr>
+                </thead>
+                <tbody id="cs-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view admin-only" data-panel="members">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Admin</p>
+                <h2>회원 관리</h2>
+              </div>
+              <button id="members-refresh" class="refresh-button" type="button">새로고침</button>
+            </div>
+            <div class="members-summary" id="members-summary">회원 정보를 불러오세요.</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>계정</th>
+                    <th>이름</th>
+                    <th>권한</th>
+                    <th>상태</th>
+                    <th>가입일</th>
+                    <th>최근 로그인</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody id="members-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="inventory-modal" aria-hidden="true">
+      <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="inventory-modal-title">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Inventory Detail</p>
+            <h2 id="inventory-modal-title">재고 상태별 제품 리스트</h2>
+            <p id="inventory-modal-subtitle">제품 단가순으로 정렬됩니다.</p>
+          </div>
+          <div class="sort-control modal-sort" aria-label="재고 상세 정렬">
+            <button class="active" type="button" data-modal-sort="amount-desc">재고금액순</button>
+            <button type="button" data-modal-sort="turnover-desc">회전율 높은순</button>
+            <button type="button" data-modal-sort="turnover-asc">회전율 낮은순</button>
+          </div>
+          <button class="icon-button" id="inventory-modal-close" type="button" aria-label="닫기">×</button>
+        </div>
+        <div class="table-wrap modal-table">
+          <table>
+            <thead>
+              <tr>
+                <th>상태</th>
+                <th>제품코드</th>
+                <th>제품명</th>
+                <th>회전율</th>
+                <th>현재고</th>
+                <th>판매가</th>
+                <th>재고금액</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-modal-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <script src="./auth-config.js?v=2026060801"></script>
+    <script src="./auth.js?v=2026060702"></script>
+    <script src="./app.js?v=2026060802"></script>
+  </body>
+</html>
