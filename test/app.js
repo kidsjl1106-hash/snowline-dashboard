@@ -29,12 +29,15 @@ const state = {
   selectedMonth: new Date().getMonth() + 1,
   productSort: "amount-desc",
   modalSort: "amount-desc",
+  priceSort: "drop-rate-desc",
   activeInventoryStatus: "",
   teamDetails: {},
   inventory: [],
   teams: [],
   products: [],
   inventoryProducts: [],
+  priceItems: [],
+  actionItems: [],
   cs: [],
 };
 let dashboardStarted = false;
@@ -55,6 +58,16 @@ const els = {
   salesBody: document.querySelector("#sales-body"),
   productsBody: document.querySelector("#products-body"),
   csBody: document.querySelector("#cs-body"),
+  priceMonitorSummary: document.querySelector("#price-monitor-summary"),
+  priceMonitorBody: document.querySelector("#price-monitor-body"),
+  inventoryRiskSummary: document.querySelector("#inventory-risk-summary"),
+  inventoryRiskBody: document.querySelector("#inventory-risk-body"),
+  actionSummary: document.querySelector("#action-summary"),
+  actionQueueBody: document.querySelector("#action-queue-body"),
+  channelSummary: document.querySelector("#channel-summary"),
+  channelSalesBody: document.querySelector("#channel-sales-body"),
+  reportSummaryGrid: document.querySelector("#report-summary-grid"),
+  reportIssueBody: document.querySelector("#report-issue-body"),
   membersSummary: document.querySelector("#members-summary"),
   membersBody: document.querySelector("#members-body"),
   membersRefresh: document.querySelector("#members-refresh"),
@@ -115,6 +128,14 @@ document.addEventListener("click", (event) => {
     state.modalSort = modalSortButton.dataset.modalSort;
     syncSortButtons("[data-modal-sort]", state.modalSort);
     if (state.activeInventoryStatus) openInventoryModal(state.activeInventoryStatus);
+    return;
+  }
+
+  const priceSortButton = event.target.closest("[data-price-sort]");
+  if (priceSortButton) {
+    state.priceSort = priceSortButton.dataset.priceSort;
+    syncSortButtons("[data-price-sort]", state.priceSort);
+    renderPriceMonitoring();
     return;
   }
 
@@ -494,6 +515,11 @@ function render() {
   renderProducts(els.productsBody, products);
   renderSales(teams);
   renderCs(cs);
+  renderPriceMonitoring();
+  renderInventoryRisk();
+  renderActionQueue(teams, cs);
+  renderChannelSales();
+  renderReports(teams, cs);
 }
 
 function renderMonthToggle() {
@@ -625,6 +651,213 @@ function renderCs(rows) {
       <td>${escapeHtml(row.manager)}</td>
     </tr>`)
     .join("");
+}
+
+function renderPriceMonitoring() {
+  if (!els.priceMonitorBody) return;
+  syncSortButtons("[data-price-sort]", state.priceSort);
+  const items = state.priceItems.slice().sort((a, b) => comparePriceItems(a, b, state.priceSort));
+  els.priceMonitorSummary.textContent = items.length
+    ? `전체 ${formatNumber(items.length)}개 · ${getPriceSortLabel(state.priceSort)}`
+    : "가격 데이터 연결 대기";
+
+  if (!items.length) {
+    renderTableEmpty(els.priceMonitorBody, 8, "가격 모니터링 DB 연결 후 표시됩니다.");
+    return;
+  }
+
+  els.priceMonitorBody.innerHTML = items
+    .map((item) => `<tr>
+      <td class="product-name">${escapeHtml(item.name)}</td>
+      <td>${formatWon(item.basePrice)}</td>
+      <td>${formatWon(item.lowestPrice)}</td>
+      <td>${formatPercent(item.dropRate)}</td>
+      <td>${formatWon(item.dropAmount)}</td>
+      <td>${escapeHtml(item.seller)}</td>
+      <td>${formatUrl(item.url)}</td>
+      <td>${escapeHtml(item.note)}</td>
+    </tr>`)
+    .join("");
+}
+
+function renderInventoryRisk() {
+  if (!els.inventoryRiskBody) return;
+  const products = getInventoryRiskProducts();
+  els.inventoryRiskSummary.textContent = products.length
+    ? `위험/처분/관심 ${formatNumber(products.length)}개`
+    : "재고 위험 품목 없음";
+
+  if (!products.length) {
+    renderTableEmpty(els.inventoryRiskBody, 7, "재고 위험 품목이 없습니다.");
+    return;
+  }
+
+  els.inventoryRiskBody.innerHTML = products.slice(0, 50)
+    .map((product) => `<tr>
+      <td><span class="status-pill ${getInventoryStatusKey(product.status)}">${escapeHtml(product.status)}</span></td>
+      <td>${escapeHtml(product.code)}</td>
+      <td class="product-name">${escapeHtml(product.name)}</td>
+      <td>${formatNumber(product.turnover)}</td>
+      <td>${formatNumber(product.stock)}</td>
+      <td>${formatWon(product.amount)}</td>
+      <td>${escapeHtml(getInventoryActionLabel(product.status))}</td>
+    </tr>`)
+    .join("");
+}
+
+function renderActionQueue(teams, cs) {
+  if (!els.actionQueueBody) return;
+  state.actionItems = buildActionItems(teams, cs);
+  els.actionSummary.textContent = state.actionItems.length
+    ? `처리 필요 ${formatNumber(state.actionItems.length)}건`
+    : "처리 필요 항목 없음";
+
+  if (!state.actionItems.length) {
+    renderTableEmpty(els.actionQueueBody, 5, "처리 필요 항목이 없습니다.");
+    return;
+  }
+
+  els.actionQueueBody.innerHTML = state.actionItems
+    .map((item) => renderActionRow(item))
+    .join("");
+}
+
+function renderChannelSales() {
+  if (!els.channelSalesBody) return;
+  els.channelSummary.textContent = "채널 데이터 연결 대기";
+  renderTableEmpty(els.channelSalesBody, 6, "채널별 매출 DB 연결 후 표시됩니다.");
+}
+
+function renderReports(teams, cs) {
+  if (!els.reportSummaryGrid || !els.reportIssueBody) return;
+  const total = teams.find((team) => team.team === "통합합계") || {};
+  const riskProducts = getInventoryRiskProducts();
+  const cards = [
+    { label: "매출 목표", value: formatWon(total.target || 0), sub: `달성률 ${formatPercent(total.rate || 0)}` },
+    { label: "현재 실적", value: formatWon(total.actual || 0), sub: `월간 ${formatPercent(total.monthlyRate || 0)}` },
+    { label: "재고 위험", value: `${formatNumber(riskProducts.length)}개`, sub: `위험/처분/관심 품목` },
+    { label: "CS 접수", value: `${formatNumber(cs.length)}건`, sub: "상담 DB 기준" },
+  ];
+
+  els.reportSummaryGrid.innerHTML = cards
+    .map((card) => `<div class="report-card">
+      <span>${escapeHtml(card.label)}</span>
+      <strong>${escapeHtml(card.value)}</strong>
+      <small>${escapeHtml(card.sub)}</small>
+    </div>`)
+    .join("");
+
+  const issues = state.actionItems.length ? state.actionItems : buildActionItems(teams, cs);
+  if (!issues.length) {
+    renderTableEmpty(els.reportIssueBody, 5, "주요 이슈가 없습니다.");
+    return;
+  }
+  els.reportIssueBody.innerHTML = issues.slice(0, 12).map((item) => renderActionRow(item)).join("");
+}
+
+function buildActionItems(teams, cs) {
+  const actions = [];
+  teams
+    .filter((team) => team.team !== "통합합계" && team.monthlyRate < 0.7)
+    .forEach((team) => {
+      actions.push({
+        type: "매출",
+        item: team.team,
+        basis: `${state.selectedMonth}월 달성률 ${formatPercent(team.monthlyRate)}`,
+        priority: team.monthlyRate < 0.4 ? "높음" : "보통",
+        status: "확인",
+      });
+    });
+
+  getInventoryRiskProducts().slice(0, 12).forEach((product) => {
+    actions.push({
+      type: "재고",
+      item: product.name,
+      basis: `${product.status} · 재고금액 ${formatWon(product.amount)}`,
+      priority: product.status === "위험" || product.status === "처분" ? "높음" : "보통",
+      status: "검토",
+    });
+  });
+
+  buildCsIssueItems(cs).forEach((issue) => actions.push(issue));
+  return actions.sort((a, b) => getPriorityRank(a.priority) - getPriorityRank(b.priority));
+}
+
+function buildCsIssueItems(cs) {
+  const counts = cs.reduce((acc, row) => {
+    const key = row.product || row.category;
+    if (!key) return acc;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(counts)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name, count]) => ({
+      type: "CS",
+      item: name,
+      basis: `상담 ${formatNumber(count)}건`,
+      priority: count >= 5 ? "높음" : "보통",
+      status: "확인",
+    }));
+}
+
+function renderActionRow(item) {
+  return `<tr>
+    <td>${escapeHtml(item.type)}</td>
+    <td class="product-name">${escapeHtml(item.item)}</td>
+    <td>${escapeHtml(item.basis)}</td>
+    <td><span class="status-pill ${getPriorityClass(item.priority)}">${escapeHtml(item.priority)}</span></td>
+    <td>${escapeHtml(item.status)}</td>
+  </tr>`;
+}
+
+function getInventoryRiskProducts() {
+  return state.inventoryProducts
+    .filter((product) => ["위험", "처분", "관심"].includes(product.status))
+    .sort((a, b) => {
+      const priority = { 위험: 0, 처분: 1, 관심: 2 };
+      return priority[a.status] - priority[b.status] || b.amount - a.amount;
+    });
+}
+
+function comparePriceItems(a, b, sortKey) {
+  if (sortKey === "name-asc") return String(a.name || "").localeCompare(String(b.name || ""), "ko");
+  if (sortKey === "base-price-desc") return Number(b.basePrice || 0) - Number(a.basePrice || 0);
+  if (sortKey === "lowest-price-asc") return Number(a.lowestPrice || 0) - Number(b.lowestPrice || 0);
+  if (sortKey === "drop-amount-desc") return Number(b.dropAmount || 0) - Number(a.dropAmount || 0);
+  if (sortKey === "drop-rate-asc") return Number(a.dropRate || 0) - Number(b.dropRate || 0);
+  return Number(b.dropRate || 0) - Number(a.dropRate || 0);
+}
+
+function getPriceSortLabel(sortKey) {
+  if (sortKey === "name-asc") return "상품명순";
+  if (sortKey === "base-price-desc") return "기준가격 높은순";
+  if (sortKey === "lowest-price-asc") return "최저가 낮은순";
+  if (sortKey === "drop-amount-desc") return "하락액 큰순";
+  if (sortKey === "drop-rate-asc") return "하락률 낮은순";
+  return "하락률 높은순";
+}
+
+function getInventoryActionLabel(status) {
+  if (status === "위험") return "품절/재고 검토";
+  if (status === "처분") return "처분/가격 검토";
+  return "회전율 확인";
+}
+
+function getPriorityRank(priority) {
+  return priority === "높음" ? 0 : priority === "보통" ? 1 : 2;
+}
+
+function getPriorityClass(priority) {
+  return priority === "높음" ? "danger" : priority === "보통" ? "watch" : "safe";
+}
+
+function formatUrl(url) {
+  if (!url) return "-";
+  return `<a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">열기</a>`;
 }
 
 function setupAdminView(user) {

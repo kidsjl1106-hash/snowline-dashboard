@@ -50,6 +50,7 @@ input {
   padding: 24px 18px;
   background: #ffffff;
   border-right: 1px solid var(--line);
+  overflow-y: auto;
 }
 
 .brand {
@@ -128,10 +129,9 @@ input {
 }
 
 .sheet-note {
-  position: absolute;
-  right: 18px;
-  bottom: 22px;
-  left: 18px;
+  position: sticky;
+  bottom: 18px;
+  margin-top: 18px;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -371,6 +371,36 @@ h2 {
 .sort-control button:hover,
 .sort-control button.active {
   border-color: rgba(249, 115, 22, 0.45);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.panel-summary {
+  align-self: center;
+  min-height: 32px;
+  border: 1px solid rgba(249, 115, 22, 0.26);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: rgba(249, 115, 22, 0.08);
+  color: var(--accent-2);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.table-sort-button {
+  min-height: 28px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.table-sort-button:hover,
+.table-sort-button.active {
   background: var(--accent);
   color: #ffffff;
 }
@@ -718,6 +748,53 @@ td.cs-content {
   color: #b91c1c;
 }
 
+.status-pill.safe {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.status-pill.watch,
+.status-pill.clearance {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+.status-pill.danger {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 4px 18px 18px;
+}
+
+.report-card {
+  min-height: 112px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--panel-strong);
+}
+
+.report-card span,
+.report-card small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.report-card strong {
+  display: block;
+  margin: 10px 0 7px;
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1;
+}
+
 .member-actions {
   white-space: nowrap;
 }
@@ -840,7 +917,8 @@ td.cs-content {
   }
 
   .kpi-grid,
-  .section-grid {
+  .section-grid,
+  .report-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -912,7 +990,8 @@ td.cs-content {
   .kpi-grid,
   .section-grid,
   .achievement-table-grid,
-  .inventory-grid {
+  .inventory-grid,
+  .report-grid {
     grid-template-columns: 1fr;
   }
 

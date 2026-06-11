@@ -29,15 +29,35 @@
           </button>
           <button class="nav-tab" data-view="sales" type="button">
             <span>Sales</span>
-            <small>목표 달성률</small>
+            <small>매출 운영</small>
           </button>
           <button class="nav-tab" data-view="products" type="button">
             <span>Products</span>
-            <small>재고금액 상위</small>
+            <small>상품 운영</small>
+          </button>
+          <button class="nav-tab" data-view="price" type="button">
+            <span>Price</span>
+            <small>가격 모니터링</small>
+          </button>
+          <button class="nav-tab" data-view="inventory-risk" type="button">
+            <span>Inventory</span>
+            <small>재고 위험</small>
           </button>
           <button class="nav-tab" data-view="cs" type="button">
             <span>CS</span>
-            <small>상담 DB</small>
+            <small>품질 이슈</small>
+          </button>
+          <button class="nav-tab" data-view="actions" type="button">
+            <span>Actions</span>
+            <small>업무 액션</small>
+          </button>
+          <button class="nav-tab" data-view="channel" type="button">
+            <span>Channel</span>
+            <small>채널 매출</small>
+          </button>
+          <button class="nav-tab" data-view="reports" type="button">
+            <span>Reports</span>
+            <small>보고서</small>
           </button>
           <button class="nav-tab admin-only" data-view="members" type="button">
             <span>Members</span>
@@ -258,6 +278,150 @@
           </article>
         </section>
 
+        <section class="content-view" data-panel="price">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Price Monitoring</p>
+                <h2>가격 모니터링</h2>
+              </div>
+              <div class="panel-summary" id="price-monitor-summary">가격 데이터 연결 대기</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th><button class="table-sort-button" type="button" data-price-sort="name-asc">상품명</button></th>
+                    <th><button class="table-sort-button" type="button" data-price-sort="base-price-desc">기준가격</button></th>
+                    <th><button class="table-sort-button" type="button" data-price-sort="lowest-price-asc">최저가</button></th>
+                    <th><button class="table-sort-button active" type="button" data-price-sort="drop-rate-desc">하락률</button></th>
+                    <th><button class="table-sort-button" type="button" data-price-sort="drop-amount-desc">하락액</button></th>
+                    <th>판매처 사업자명</th>
+                    <th>판매처 URL</th>
+                    <th>비고</th>
+                  </tr>
+                </thead>
+                <tbody id="price-monitor-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="inventory-risk">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Inventory Risk</p>
+                <h2>재고 위험 관리</h2>
+              </div>
+              <div class="panel-summary" id="inventory-risk-summary">재고 위험 품목 산출 중</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>상태</th>
+                    <th>제품코드</th>
+                    <th>제품명</th>
+                    <th>회전율</th>
+                    <th>현재고</th>
+                    <th>재고금액</th>
+                    <th>조치</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-risk-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="actions">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Action Queue</p>
+                <h2>업무 액션</h2>
+              </div>
+              <div class="panel-summary" id="action-summary">액션 항목 산출 중</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>항목</th>
+                    <th>기준</th>
+                    <th>우선순위</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody id="action-queue-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="channel">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Channel Sales</p>
+                <h2>채널별 매출</h2>
+              </div>
+              <div class="panel-summary" id="channel-summary">채널 데이터 연결 대기</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>채널</th>
+                    <th>목표</th>
+                    <th>실적</th>
+                    <th>달성률</th>
+                    <th>전월 대비</th>
+                    <th>비고</th>
+                  </tr>
+                </thead>
+                <tbody id="channel-sales-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="reports">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Executive Report</p>
+                <h2>보고서</h2>
+              </div>
+            </div>
+            <div class="report-grid" id="report-summary-grid"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Issue Summary</p>
+                <h2>주요 이슈</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>항목</th>
+                    <th>기준</th>
+                    <th>우선순위</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody id="report-issue-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
         <section class="content-view admin-only" data-panel="members">
           <article class="panel">
             <div class="panel-head">
@@ -325,6 +489,6 @@
 
     <script src="./auth-config.js?v=2026060802"></script>
     <script src="./auth.js?v=2026060804"></script>
-    <script src="./app.js?v=2026060807"></script>
+    <script src="./app.js?v=2026061201"></script>
   </body>
 </html>
