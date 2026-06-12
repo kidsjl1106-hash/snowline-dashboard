@@ -2,6 +2,7 @@ const SHEET_ID = "1whGIBwNUDKzZp6hczvqNqExN_icFmwHPCt7385W15ws";
 const SHEETS = {
   cs: "CS DB",
   inventoryTurnover: "제품회전율",
+  familySale: "패밀리세일DB원본",
 };
 const PUBLIC_SHEET_JSONP_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
 const SHEET_FETCH_TIMEOUT_MS = 20000;
@@ -133,8 +134,8 @@ document.addEventListener("click", (event) => {
 
   const priceSortButton = event.target.closest("[data-price-sort]");
   if (priceSortButton) {
-    state.priceSort = priceSortButton.dataset.priceSort;
-    syncSortButtons("[data-price-sort]", state.priceSort);
+    state.priceSort = getNextPriceSort(priceSortButton.dataset.priceSort);
+    syncPriceSortButtons();
     renderPriceMonitoring();
     return;
   }
@@ -172,10 +173,11 @@ async function loadDashboard() {
   setStatus("loading", "구글시트 데이터를 불러오는 중입니다.", "연결중");
 
   const errors = [];
-  const [csResult, inventoryResult, teamDetailsResult] = await Promise.allSettled([
+  const [csResult, inventoryResult, teamDetailsResult, familySaleResult] = await Promise.allSettled([
     fetchSheet(SHEETS.cs),
     fetchSheet(SHEETS.inventoryTurnover),
     fetchTeamDetails(),
+    fetchSheet(SHEETS.familySale),
   ]);
 
   if (csResult.status === "fulfilled") {
@@ -205,6 +207,13 @@ async function loadDashboard() {
     state.teamDetails = {};
     state.teams = [];
     errors.push(`팀 목표: ${formatLoadError(teamDetailsResult.reason)}`);
+  }
+
+  if (familySaleResult.status === "fulfilled") {
+    state.priceItems = parseFamilySalePriceItems(familySaleResult.value);
+  } else {
+    state.priceItems = [];
+    errors.push(`${SHEETS.familySale}: ${formatLoadError(familySaleResult.reason)}`);
   }
 
   const hasData = state.cs.length || state.inventoryProducts.length || state.teams.length;
@@ -471,13 +480,14 @@ function parseInventoryProducts(rows) {
     .slice(1)
     .map((row) => {
       const turnover = toNumber(row[38]);
+      const sheetStatus = String(row[37] || "").trim();
       return {
         code: row[5],
         name: row[6],
         salePrice: toNumber(row[8]),
         stock: toNumber(row[34]),
         amount: toNumber(row[36]),
-        status: getTurnoverStatus(turnover),
+        status: isInventoryStatus(sheetStatus) ? normalizeInventoryStatus(sheetStatus) : getTurnoverStatus(turnover),
         turnover,
       };
     })
@@ -520,6 +530,31 @@ function render() {
   renderActionQueue(teams, cs);
   renderChannelSales();
   renderReports(teams, cs);
+}
+
+function parseFamilySalePriceItems(rows) {
+  return rows
+    .slice(2)
+    .map((row) => {
+      const basePrice = toNumber(row[12]);
+      const lowestPrice = toNumber(row[17]);
+      const dropAmount = Math.max(0, basePrice - lowestPrice);
+      const dropRate = basePrice ? dropAmount / basePrice : 0;
+      return {
+        category: row[0],
+        code: row[1],
+        name: [row[2], row[4]].filter(Boolean).join(" / "),
+        basePrice,
+        lowestPrice,
+        dropRate,
+        dropAmount,
+        seller: "패밀리세일",
+        url: "",
+        note: row[15] || row[16] || "패밀리세일DB원본 기준",
+      };
+    })
+    .filter((item) => item.code && item.name && item.basePrice > 0 && item.lowestPrice > 0 && item.dropAmount > 0)
+    .sort((a, b) => b.dropRate - a.dropRate);
 }
 
 function renderMonthToggle() {
@@ -655,7 +690,7 @@ function renderCs(rows) {
 
 function renderPriceMonitoring() {
   if (!els.priceMonitorBody) return;
-  syncSortButtons("[data-price-sort]", state.priceSort);
+  syncPriceSortButtons();
   const items = state.priceItems.slice().sort((a, b) => comparePriceItems(a, b, state.priceSort));
   els.priceMonitorSummary.textContent = items.length
     ? `전체 ${formatNumber(items.length)}개 · ${getPriceSortLabel(state.priceSort)}`
@@ -724,8 +759,26 @@ function renderActionQueue(teams, cs) {
 
 function renderChannelSales() {
   if (!els.channelSalesBody) return;
-  els.channelSummary.textContent = "채널 데이터 연결 대기";
-  renderTableEmpty(els.channelSalesBody, 6, "채널별 매출 DB 연결 후 표시됩니다.");
+  const channels = buildChannelOperations();
+  els.channelSummary.textContent = channels.length
+    ? `CS DB 기준 ${formatNumber(channels.length)}개 채널`
+    : "채널 데이터 없음";
+
+  if (!channels.length) {
+    renderTableEmpty(els.channelSalesBody, 6, "CS DB 채널 데이터가 없습니다.");
+    return;
+  }
+
+  els.channelSalesBody.innerHTML = channels
+    .map((channel) => `<tr>
+      <td>${escapeHtml(channel.channel)}</td>
+      <td>${formatNumber(channel.count)}건</td>
+      <td>${formatWon(channel.cost)}</td>
+      <td>${formatPercent(channel.share)}</td>
+      <td class="product-name">${escapeHtml(channel.topProduct)}</td>
+      <td>${escapeHtml(channel.note)}</td>
+    </tr>`)
+    .join("");
 }
 
 function renderReports(teams, cs) {
@@ -804,6 +857,30 @@ function buildCsIssueItems(cs) {
     }));
 }
 
+function buildChannelOperations() {
+  const totalCount = state.cs.length;
+  const groups = state.cs.reduce((acc, row) => {
+    const channel = row.channel || "미지정";
+    if (!acc[channel]) acc[channel] = { channel, count: 0, cost: 0, products: {} };
+    acc[channel].count += 1;
+    acc[channel].cost += row.totalCost || 0;
+    if (row.product) acc[channel].products[row.product] = (acc[channel].products[row.product] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.values(groups)
+    .map((group) => {
+      const topProduct = Object.entries(group.products).sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
+      return {
+        ...group,
+        share: totalCount ? group.count / totalCount : 0,
+        topProduct,
+        note: "CS DB 접수채널 기준",
+      };
+    })
+    .sort((a, b) => b.count - a.count || b.cost - a.cost);
+}
+
 function renderActionRow(item) {
   return `<tr>
     <td>${escapeHtml(item.type)}</td>
@@ -832,6 +909,33 @@ function comparePriceItems(a, b, sortKey) {
   return Number(b.dropRate || 0) - Number(a.dropRate || 0);
 }
 
+function getNextPriceSort(requestedSort) {
+  if (!requestedSort) return state.priceSort;
+  if (state.priceSort === requestedSort && requestedSort.endsWith("-desc")) {
+    return requestedSort.replace("-desc", "-asc");
+  }
+  if (state.priceSort === requestedSort.replace("-desc", "-asc")) {
+    return requestedSort;
+  }
+  return requestedSort;
+}
+
+function syncPriceSortButtons() {
+  document.querySelectorAll("[data-price-sort]").forEach((button) => {
+    const sort = button.dataset.priceSort;
+    const ascPair = sort?.endsWith("-desc") ? sort.replace("-desc", "-asc") : "";
+    const active = state.priceSort === sort || state.priceSort === ascPair;
+    button.classList.toggle("active", active);
+    button.textContent = getPriceSortButtonLabel(button.textContent.replace(/[↑↓]/g, "").trim(), sort, active);
+  });
+}
+
+function getPriceSortButtonLabel(label, sort, active) {
+  if (!active || !sort) return label;
+  const direction = state.priceSort.endsWith("-asc") ? "↑" : "↓";
+  return `${label} ${direction}`;
+}
+
 function getPriceSortLabel(sortKey) {
   if (sortKey === "name-asc") return "상품명순";
   if (sortKey === "base-price-desc") return "기준가격 높은순";
@@ -845,6 +949,14 @@ function getInventoryActionLabel(status) {
   if (status === "위험") return "품절/재고 검토";
   if (status === "처분") return "처분/가격 검토";
   return "회전율 확인";
+}
+
+function normalizeInventoryStatus(status) {
+  if (status.includes("위험")) return "위험";
+  if (status.includes("처분")) return "처분";
+  if (status.includes("관심")) return "관심";
+  if (status.includes("안전")) return "안전";
+  return status;
 }
 
 function getPriorityRank(priority) {
