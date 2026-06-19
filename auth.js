@@ -272,6 +272,10 @@
   }
 
   function saveAndUnlock(result) {
+    if (!result?.token || !result?.user) {
+      throw new Error("로그인 서버 응답이 올바르지 않습니다.");
+    }
+
     session = {
       token: result.token,
       user: result.user,
@@ -324,7 +328,8 @@
 
   function readSession() {
     try {
-      const saved = JSON.parse(localStorage.getItem(sessionKey) || sessionStorage.getItem(sessionKey) || "null");
+      localStorage.removeItem(sessionKey);
+      const saved = JSON.parse(sessionStorage.getItem(sessionKey) || "null");
       if (!saved?.token) return null;
       if (isStoredSessionExpired(saved)) {
         removeStoredSession();
@@ -339,8 +344,8 @@
   function writeSession(value) {
     const serialized = JSON.stringify(value);
     try {
-      localStorage.setItem(sessionKey, serialized);
-      sessionStorage.removeItem(sessionKey);
+      localStorage.removeItem(sessionKey);
+      sessionStorage.setItem(sessionKey, serialized);
     } catch (error) {
       sessionStorage.setItem(sessionKey, serialized);
     }
