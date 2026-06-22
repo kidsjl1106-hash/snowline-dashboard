@@ -406,7 +406,11 @@ function parseInventoryProducts(rows) {
         turnover,
       };
     })
-    .filter((row) => row.code.toUpperCase().startsWith("SN") && row.name && isInventoryStatus(row.status));
+    .filter((row) => isSnowlineProductCode(row.code) && row.name && isInventoryStatus(row.status));
+}
+
+function isSnowlineProductCode(code) {
+  return String(code || "").trim().toUpperCase().startsWith("SN");
 }
 
 function parseCs(rows) {
