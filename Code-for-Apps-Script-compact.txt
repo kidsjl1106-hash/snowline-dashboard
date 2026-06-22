@@ -138,11 +138,26 @@ function sheet_(payload) {
   const sheetName = String(payload.sheetName || "");
   if (!CONFIG.allowedSheets.includes(sheetName)) throw new Error("허용되지 않은 시트입니다.");
 
-  const sheet = SpreadsheetApp.openById(CONFIG.spreadsheetId).getSheetByName(sheetName);
-  if (!sheet) throw new Error("시트를 찾을 수 없습니다.");
-
-  const values = sheet.getDataRange().getDisplayValues();
+  const values = readDashboardSheet_(sheetName);
   return { ok: true, csv: toCsv_(values) };
+}
+
+function readDashboardSheet_(sheetName) {
+  try {
+    const sheet = SpreadsheetApp.openById(CONFIG.spreadsheetId).getSheetByName(sheetName);
+    if (!sheet) throw new Error("시트를 찾을 수 없습니다.");
+    return sheet.getDataRange().getDisplayValues();
+  } catch (error) {
+    throw new Error(buildSpreadsheetAccessMessage_(error));
+  }
+}
+
+function buildSpreadsheetAccessMessage_(error) {
+  const message = error && error.message ? error.message : String(error || "");
+  if (/permission|access|권한|액세스|You do not have permission/i.test(message)) {
+    return "구글시트 조회 권한은 사용자별 공유가 아니라 Apps Script 소유자 권한으로 처리되어야 합니다. Apps Script 배포 설정에서 '실행 사용자: 나', '액세스 권한: 모든 사용자'로 새 버전을 배포해주세요.";
+  }
+  return message || "구글시트 데이터를 읽지 못했습니다.";
 }
 
 function addCs_(payload) {
