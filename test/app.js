@@ -165,10 +165,11 @@ async function loadDashboard() {
   setStatus("loading", "구글시트 데이터를 불러오는 중입니다.", "연결중");
 
   const errors = [];
-  const [csResult, inventoryResult, teamDetailsResult] = await Promise.allSettled([
-    fetchSheet(SHEETS.cs),
-    fetchSheet(SHEETS.inventoryTurnover),
-    fetchTeamDetails(),
+  const dashboardSheets = await fetchDashboardSheets();
+  const [csResult, inventoryResult, teamDetailsResult] = await Promise.all([
+    getDashboardSheetResult(dashboardSheets, SHEETS.cs),
+    getDashboardSheetResult(dashboardSheets, SHEETS.inventoryTurnover),
+    settle(() => fetchTeamDetails(dashboardSheets)),
   ]);
 
   if (csResult.status === "fulfilled") {
@@ -219,9 +220,55 @@ async function fetchSheet(sheetName) {
   if (!window.SnowlineAuth?.request) {
     throw new Error("로그인 세션이 필요합니다.");
   }
-  const result = await window.SnowlineAuth.request({ action: "sheet", sheetName });
+  const result = await withTimeout(
+    window.SnowlineAuth.request({ action: "sheet", sheetName }),
+    SHEET_FETCH_TIMEOUT_MS,
+    `${sheetName} 조회 응답이 지연되고 있습니다.`,
+  );
   if (!result.csv) throw new Error(`${sheetName} 데이터를 불러오지 못했습니다.`);
   return parseCsv(result.csv);
+}
+
+async function fetchDashboardSheets() {
+  if (!window.SnowlineAuth?.request) {
+    throw new Error("로그인 세션이 필요합니다.");
+  }
+
+  try {
+    const sheetNames = [SHEETS.cs, SHEETS.inventoryTurnover, ...TEAM_SHEETS.map((team) => team.sheet)];
+    const result = await withTimeout(
+      window.SnowlineAuth.request({ action: "dashboard", sheetNames }),
+      SHEET_FETCH_TIMEOUT_MS,
+      "구글시트 통합 조회 응답이 지연되고 있습니다.",
+    );
+    return result.sheets || {};
+  } catch (error) {
+    console.warn("Dashboard batch load failed, falling back to individual sheet requests.", error);
+    return null;
+  }
+}
+
+function getDashboardSheetResult(dashboardSheets, sheetName) {
+  if (!dashboardSheets) return settle(() => fetchSheet(sheetName));
+  const sheet = dashboardSheets[sheetName];
+  if (sheet?.csv) return { status: "fulfilled", value: parseCsv(sheet.csv) };
+  return { status: "rejected", reason: new Error(sheet?.error || `${sheetName} 데이터를 불러오지 못했습니다.`) };
+}
+
+async function settle(task) {
+  try {
+    return { status: "fulfilled", value: await task() };
+  } catch (error) {
+    return { status: "rejected", reason: error };
+  }
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
 }
 
 function formatLoadError(error) {
@@ -324,13 +371,21 @@ function parseTeamDetail(rows) {
   };
 }
 
-async function fetchTeamDetails() {
-  const results = await Promise.allSettled(
-    TEAM_SHEETS.map(async (team) => ({
-      rows: await fetchSheet(team.sheet),
-      updatedAt: new Date().toISOString(),
-    })),
-  );
+async function fetchTeamDetails(dashboardSheets) {
+  const results = dashboardSheets
+    ? TEAM_SHEETS.map((team) => {
+        const sheet = dashboardSheets[team.sheet];
+        if (sheet?.csv) {
+          return { status: "fulfilled", value: { rows: parseCsv(sheet.csv), updatedAt: new Date().toISOString() } };
+        }
+        return { status: "rejected", reason: new Error(sheet?.error || `${team.sheet} 데이터를 불러오지 못했습니다.`) };
+      })
+    : await Promise.allSettled(
+        TEAM_SHEETS.map(async (team) => ({
+          rows: await fetchSheet(team.sheet),
+          updatedAt: new Date().toISOString(),
+        })),
+      );
   const errors = [];
   const details = TEAM_SHEETS.reduce((details, team, index) => {
     if (results[index].status === "fulfilled") {

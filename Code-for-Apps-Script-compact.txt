@@ -57,6 +57,7 @@ function doPost(e) {
     if (action === "signup") return json_(signup_(payload));
     if (action === "login") return json_(login_(payload));
     if (action === "me") return json_(me_(payload));
+    if (action === "dashboard") return json_(dashboard_(payload));
     if (action === "sheet") return json_(sheet_(payload));
     if (action === "addCs") return json_(addCs_(payload));
     if (action === "listPending") return json_(listPending_(payload));
@@ -140,6 +141,28 @@ function sheet_(payload) {
 
   const values = readDashboardSheet_(sheetName);
   return { ok: true, csv: toCsv_(values) };
+}
+
+function dashboard_(payload) {
+  requireUser_(payload.token);
+  const requestedNames = Array.isArray(payload.sheetNames) ? payload.sheetNames : CONFIG.allowedSheets;
+  const uniqueNames = [...new Set(requestedNames.map((name) => String(name || "")).filter(Boolean))];
+  const sheets = {};
+
+  uniqueNames.forEach((sheetName) => {
+    if (!CONFIG.allowedSheets.includes(sheetName)) {
+      sheets[sheetName] = { ok: false, error: "허용되지 않은 시트입니다." };
+      return;
+    }
+
+    try {
+      sheets[sheetName] = { ok: true, csv: toCsv_(readDashboardSheet_(sheetName)) };
+    } catch (error) {
+      sheets[sheetName] = { ok: false, error: error.message || "구글시트 데이터를 읽지 못했습니다." };
+    }
+  });
+
+  return { ok: true, sheets };
 }
 
 function readDashboardSheet_(sheetName) {
