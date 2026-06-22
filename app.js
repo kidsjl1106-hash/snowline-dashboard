@@ -165,7 +165,21 @@ async function loadDashboard() {
   setStatus("loading", "구글시트 데이터를 불러오는 중입니다.", "연결중");
 
   const errors = [];
-  const dashboardSheets = await fetchDashboardSheets();
+  let dashboardSheets = null;
+  try {
+    dashboardSheets = await fetchDashboardSheets();
+  } catch (error) {
+    console.error("Dashboard load failed before sheet requests.", error);
+    state.cs = [];
+    state.inventoryProducts = [];
+    state.inventory = [];
+    state.products = [];
+    state.teamDetails = {};
+    state.teams = [];
+    setStatus("error", formatLoadError(error), "오류");
+    render();
+    return;
+  }
   const [csResult, inventoryResult, teamDetailsResult] = await Promise.all([
     getDashboardSheetResult(dashboardSheets, SHEETS.cs),
     getDashboardSheetResult(dashboardSheets, SHEETS.inventoryTurnover),
