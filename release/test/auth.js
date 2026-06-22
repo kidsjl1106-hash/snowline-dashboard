@@ -37,7 +37,7 @@
     screen.innerHTML = `
       <div class="auth-card">
         <div class="auth-brand">
-          <img src="./assets/logo.png?v=2026060701" alt="SNOWLINE" />
+          <img src="./assets/logo.png?v=2026060201" alt="SNOWLINE" />
           <div>
             <strong>SNOWLINE</strong>
             <span>Sales Dashboard</span>
@@ -55,7 +55,7 @@
     document.body.prepend(screen);
 
     document.querySelector("#auth-login-tab").addEventListener("click", showLogin);
-    document.querySelector("#auth-signup-tab").addEventListener("click", showSignup);
+    document.querySelector("#auth-signup-tab").addEventListener("click", showSignupGuide);
   }
 
   function showLogin() {
@@ -85,7 +85,7 @@
       <form class="auth-form" id="auth-signup-form">
         <label>
           계정 이름
-          <input name="userId" autocomplete="username" required />
+          <input name="userId" autocomplete="username" placeholder="한글 이름" required />
         </label>
         <label>
           본인 이름
@@ -93,17 +93,61 @@
         </label>
         <label>
           비밀번호
-          <input name="password" type="password" autocomplete="new-password" minlength="10" required />
+          <input name="password" type="password" autocomplete="new-password" minlength="4" required />
         </label>
         <label>
           비밀번호 확인
-          <input name="confirmPassword" type="password" autocomplete="new-password" minlength="10" required />
+          <input name="confirmPassword" type="password" autocomplete="new-password" minlength="4" required />
         </label>
         <div class="auth-message" id="auth-message"></div>
         <button type="submit">회원가입 요청</button>
       </form>
     `;
     document.querySelector("#auth-signup-form").addEventListener("submit", handleSignup);
+  }
+
+  function showSignupGuide() {
+    const dialog = ensureSignupGuide();
+    dialog.classList.add("open");
+  }
+
+  function ensureSignupGuide() {
+    let dialog = document.querySelector("#auth-signup-guide");
+    if (dialog) return dialog;
+
+    dialog = document.createElement("section");
+    dialog.id = "auth-signup-guide";
+    dialog.className = "auth-guide";
+    dialog.innerHTML = `
+      <div class="auth-guide-card" role="dialog" aria-modal="true" aria-labelledby="auth-guide-title">
+        <h2 id="auth-guide-title">회원가입 안내</h2>
+        <p class="auth-guide-alert">계정 이름은 한글로만 가입할 수 있습니다.</p>
+        <ul>
+          <li>계정 이름은 공백 없이 한글 2~40자로 입력합니다.</li>
+          <li>비밀번호는 4글자 이상이면 숫자만으로도 설정할 수 있습니다.</li>
+          <li>회원가입 후 Limseongjin 관리자 승인이 완료되어야 로그인할 수 있습니다.</li>
+          <li>개인 기기에서는 한 번 로그인하면 자동 로그인됩니다.</li>
+        </ul>
+        <div class="auth-guide-actions">
+          <button id="auth-guide-confirm" type="button">확인하고 가입하기</button>
+          <button id="auth-guide-cancel" class="secondary" type="button">취소</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dialog);
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.classList.remove("open");
+    });
+    dialog.querySelector("#auth-guide-confirm").addEventListener("click", () => {
+      alert("계정 이름은 한글로만 가입할 수 있습니다.");
+      dialog.classList.remove("open");
+      showSignup();
+    });
+    dialog.querySelector("#auth-guide-cancel").addEventListener("click", () => {
+      dialog.classList.remove("open");
+      showLogin();
+    });
+    return dialog;
   }
 
   function setActiveTab(mode) {
@@ -133,8 +177,21 @@
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const message = document.querySelector("#auth-message");
+    const userId = String(form.get("userId") || "").trim();
+    const normalizedUserId = userId.replace(/\s+/g, "");
     const password = String(form.get("password") || "");
     const confirmPassword = String(form.get("confirmPassword") || "");
+
+    if (!/^[가-힣]{2,40}$/.test(normalizedUserId)) {
+      alert("계정 이름은 한글로만 가입할 수 있습니다.");
+      setMessage(message, "계정 이름은 공백 없이 한글 2~40자로 입력해주세요.");
+      return;
+    }
+
+    if (password.length < 4) {
+      setMessage(message, "비밀번호는 4글자 이상으로 설정해주세요.");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setMessage(message, "비밀번호 확인이 일치하지 않습니다.");
@@ -146,7 +203,7 @@
     try {
       await callApi({
         action: "signup",
-        userId: form.get("userId"),
+        userId: normalizedUserId,
         displayName: form.get("displayName"),
         password,
       });
@@ -215,6 +272,10 @@
   }
 
   function saveAndUnlock(result) {
+    if (!result?.token || !result?.user) {
+      throw new Error("로그인 서버 응답이 올바르지 않습니다.");
+    }
+
     session = {
       token: result.token,
       user: result.user,
@@ -267,7 +328,8 @@
 
   function readSession() {
     try {
-      const saved = JSON.parse(localStorage.getItem(sessionKey) || sessionStorage.getItem(sessionKey) || "null");
+      localStorage.removeItem(sessionKey);
+      const saved = JSON.parse(sessionStorage.getItem(sessionKey) || "null");
       if (!saved?.token) return null;
       if (isStoredSessionExpired(saved)) {
         removeStoredSession();
@@ -282,8 +344,8 @@
   function writeSession(value) {
     const serialized = JSON.stringify(value);
     try {
-      localStorage.setItem(sessionKey, serialized);
-      sessionStorage.removeItem(sessionKey);
+      localStorage.removeItem(sessionKey);
+      sessionStorage.setItem(sessionKey, serialized);
     } catch (error) {
       sessionStorage.setItem(sessionKey, serialized);
     }

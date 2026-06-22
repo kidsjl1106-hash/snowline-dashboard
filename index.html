@@ -6,16 +6,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>SNOWLINE 영업 대시보드</title>
-    <link rel="icon" href="./assets/logo.png?v=2026060201" />
-    <link rel="stylesheet" href="./auth.css?v=2026060801" />
-    <link rel="stylesheet" href="./styles.css?v=2026060801" />
+    <title>SNOWLINE 영업 대시보드 | GitHub Upload</title>
+    <link rel="icon" href="./assets/logo.png?v=2026060701" />
+    <link rel="stylesheet" href="./auth.css?v=2026060701" />
+    <link rel="stylesheet" href="./styles.css?v=2026062204" />
   </head>
   <body class="auth-locked">
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <img class="brand-logo" src="./assets/logo.png?v=2026060201" alt="SNOWLINE" />
+          <img class="brand-logo" src="./assets/logo.png?v=2026060701" alt="SNOWLINE" />
           <div>
             <strong>SNOWLINE</strong>
             <span>Sales Dashboard</span>
@@ -29,15 +29,31 @@
           </button>
           <button class="nav-tab" data-view="sales" type="button">
             <span>Sales</span>
-            <small>목표 달성률</small>
+            <small>매출 운영</small>
           </button>
           <button class="nav-tab" data-view="products" type="button">
             <span>Products</span>
-            <small>재고금액 상위</small>
+            <small>상품 운영</small>
+          </button>
+          <button class="nav-tab" data-view="inventory-risk" type="button">
+            <span>Inventory</span>
+            <small>재고 위험</small>
           </button>
           <button class="nav-tab" data-view="cs" type="button">
             <span>CS</span>
-            <small>상담 DB</small>
+            <small>품질 이슈</small>
+          </button>
+          <button class="nav-tab" data-view="actions" type="button">
+            <span>Actions</span>
+            <small>업무 액션</small>
+          </button>
+          <button class="nav-tab" data-view="channel" type="button">
+            <span>Channel</span>
+            <small>채널 운영</small>
+          </button>
+          <button class="nav-tab" data-view="reports" type="button">
+            <span>Reports</span>
+            <small>보고서</small>
           </button>
           <button class="nav-tab admin-only" data-view="members" type="button">
             <span>Members</span>
@@ -54,8 +70,12 @@
       <main class="workspace">
         <header class="topbar">
           <div>
-            <p class="eyebrow">SNOWLINE 영업 대시보드 v1.0</p>
+            <div class="title-row">
+              <p class="eyebrow">SNOWLINE 영업 대시보드</p>
+              <span class="deploy-badge">GitHub Upload</span>
+            </div>
             <h1>구글시트 연동 통합 현황</h1>
+            <p class="deploy-meta" id="build-version">GitHub 업로드 테스트 · 2026.06.07</p>
           </div>
           <div class="top-actions">
             <label class="search-box">
@@ -254,6 +274,121 @@
           </article>
         </section>
 
+        <section class="content-view" data-panel="inventory-risk">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Inventory Risk</p>
+                <h2>재고 위험 관리</h2>
+              </div>
+              <div class="panel-summary" id="inventory-risk-summary">재고 위험 품목 산출 중</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>상태</th>
+                    <th>제품코드</th>
+                    <th>제품명</th>
+                    <th>회전율</th>
+                    <th>현재고</th>
+                    <th>재고금액</th>
+                    <th>조치</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-risk-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="actions">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Action Queue</p>
+                <h2>업무 액션</h2>
+              </div>
+              <div class="panel-summary" id="action-summary">액션 항목 산출 중</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>항목</th>
+                    <th>기준</th>
+                    <th>우선순위</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody id="action-queue-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="channel">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Channel Operations</p>
+                <h2>채널별 운영 현황</h2>
+              </div>
+              <div class="panel-summary" id="channel-summary">채널 데이터 연결 대기</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>채널</th>
+                    <th>상담건수</th>
+                    <th>청구비용</th>
+                    <th>비중</th>
+                    <th>주요 제품</th>
+                    <th>비고</th>
+                  </tr>
+                </thead>
+                <tbody id="channel-sales-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="reports">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Executive Report</p>
+                <h2>보고서</h2>
+              </div>
+            </div>
+            <div class="report-grid" id="report-summary-grid"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Issue Summary</p>
+                <h2>주요 이슈</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>항목</th>
+                    <th>기준</th>
+                    <th>우선순위</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody id="report-issue-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
         <section class="content-view admin-only" data-panel="members">
           <article class="panel">
             <div class="panel-head">
@@ -320,7 +455,7 @@
     </div>
 
     <script src="./auth-config.js?v=2026060802"></script>
-    <script src="./auth.js?v=2026061901"></script>
-    <script src="./app.js?v=2026062202"></script>
+    <script src="./auth.js?v=2026062204"></script>
+    <script src="./app.js?v=2026062204"></script>
   </body>
 </html>

@@ -9,7 +9,7 @@
     <title>SNOWLINE 영업 대시보드 | GitHub Upload</title>
     <link rel="icon" href="./assets/logo.png?v=2026060701" />
     <link rel="stylesheet" href="./auth.css?v=2026060701" />
-    <link rel="stylesheet" href="./styles.css?v=2026060801" />
+    <link rel="stylesheet" href="./styles.css?v=2026062204" />
   </head>
   <body class="auth-locked">
     <div class="app-shell">
@@ -34,10 +34,6 @@
           <button class="nav-tab" data-view="products" type="button">
             <span>Products</span>
             <small>상품 운영</small>
-          </button>
-          <button class="nav-tab" data-view="price" type="button">
-            <span>Price</span>
-            <small>가격 모니터링</small>
           </button>
           <button class="nav-tab" data-view="inventory-risk" type="button">
             <span>Inventory</span>
@@ -278,35 +274,6 @@
           </article>
         </section>
 
-        <section class="content-view" data-panel="price">
-          <article class="panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Price Monitoring</p>
-                <h2>가격 모니터링</h2>
-              </div>
-              <div class="panel-summary" id="price-monitor-summary">가격 데이터 연결 대기</div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th><button class="table-sort-button" type="button" data-price-sort="name-asc">상품명</button></th>
-                    <th><button class="table-sort-button" type="button" data-price-sort="base-price-desc">기준가격</button></th>
-                    <th><button class="table-sort-button" type="button" data-price-sort="lowest-price-asc">최저가</button></th>
-                    <th><button class="table-sort-button active" type="button" data-price-sort="drop-rate-desc">하락률</button></th>
-                    <th><button class="table-sort-button" type="button" data-price-sort="drop-amount-desc">하락액</button></th>
-                    <th>판매처 사업자명</th>
-                    <th>판매처 URL</th>
-                    <th>비고</th>
-                  </tr>
-                </thead>
-                <tbody id="price-monitor-body"></tbody>
-              </table>
-            </div>
-          </article>
-        </section>
-
         <section class="content-view" data-panel="inventory-risk">
           <article class="panel">
             <div class="panel-head">
@@ -488,7 +455,7 @@
     </div>
 
     <script src="./auth-config.js?v=2026060802"></script>
-    <script src="./auth.js?v=2026060804"></script>
-    <script src="./app.js?v=2026061202"></script>
+    <script src="./auth.js?v=2026062204"></script>
+    <script src="./app.js?v=2026062204"></script>
   </body>
 </html>

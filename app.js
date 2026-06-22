@@ -18,6 +18,10 @@ const HTML_ENTITIES = {
   '"': "&quot;",
   "'": "&#39;",
 };
+const BUILD_INFO = {
+  channel: "GitHub Upload",
+  version: "2026.06.22",
+};
 
 const state = {
   query: "",
@@ -30,6 +34,7 @@ const state = {
   teams: [],
   products: [],
   inventoryProducts: [],
+  actionItems: [],
   cs: [],
 };
 let dashboardStarted = false;
@@ -38,6 +43,7 @@ const els = {
   sheetStatus: document.querySelector("#sheet-status"),
   statusStrip: document.querySelector("#status-strip"),
   lastUpdated: document.querySelector("#last-updated"),
+  buildVersion: document.querySelector("#build-version"),
   kpiGrid: document.querySelector("#kpi-grid"),
   teamBars: document.querySelector("#team-bars"),
   monthToggle: document.querySelector("#month-toggle"),
@@ -49,6 +55,14 @@ const els = {
   salesBody: document.querySelector("#sales-body"),
   productsBody: document.querySelector("#products-body"),
   csBody: document.querySelector("#cs-body"),
+  inventoryRiskSummary: document.querySelector("#inventory-risk-summary"),
+  inventoryRiskBody: document.querySelector("#inventory-risk-body"),
+  actionSummary: document.querySelector("#action-summary"),
+  actionQueueBody: document.querySelector("#action-queue-body"),
+  channelSummary: document.querySelector("#channel-summary"),
+  channelSalesBody: document.querySelector("#channel-sales-body"),
+  reportSummaryGrid: document.querySelector("#report-summary-grid"),
+  reportIssueBody: document.querySelector("#report-issue-body"),
   membersSummary: document.querySelector("#members-summary"),
   membersBody: document.querySelector("#members-body"),
   membersRefresh: document.querySelector("#members-refresh"),
@@ -60,6 +74,8 @@ const els = {
   inventoryModalBody: document.querySelector("#inventory-modal-body"),
   inventoryModalClose: document.querySelector("#inventory-modal-close"),
 };
+
+initBuildInfo();
 
 document.querySelectorAll(".nav-tab").forEach((button) => {
   button.addEventListener("click", () => {
@@ -132,6 +148,12 @@ function startDashboard(user) {
   dashboardStarted = true;
   setupAdminView(user);
   loadDashboard();
+}
+
+function initBuildInfo() {
+  if (!els.buildVersion) return;
+  const channelLabel = window.location.pathname.includes("/test/") ? "테스트" : "운영";
+  els.buildVersion.textContent = `${BUILD_INFO.channel} ${channelLabel} · ${BUILD_INFO.version}`;
 }
 
 async function loadDashboard() {
@@ -444,6 +466,10 @@ function render() {
   renderProducts(els.productsBody, products);
   renderSales(teams);
   renderCs(cs);
+  renderInventoryRisk();
+  renderActionQueue(teams, cs);
+  renderChannelSales();
+  renderReports(teams, cs);
 }
 
 function renderMonthToggle() {
@@ -525,7 +551,7 @@ function renderInventory() {
     .map((item) => `<button class="inventory-item" type="button" data-status="${escapeAttribute(item.label)}">
       <span>${escapeHtml(item.label)}</span>
       <strong>${formatNumber(item.value)}</strong>
-      <small>연간 ${formatNumber(ANNUAL_SAFE_TURNOVER)}회전 안전재고 기준</small>
+      <small>제품회전율 기준 상세 보기</small>
     </button>`)
     .join("");
 
@@ -575,6 +601,218 @@ function renderCs(rows) {
       <td>${escapeHtml(row.manager)}</td>
     </tr>`)
     .join("");
+}
+
+function renderInventoryRisk() {
+  if (!els.inventoryRiskBody) return;
+  const products = getInventoryRiskProducts();
+  els.inventoryRiskSummary.textContent = products.length
+    ? `위험/처분/관심 ${formatNumber(products.length)}개`
+    : "재고 위험 품목 없음";
+
+  if (!products.length) {
+    renderTableEmpty(els.inventoryRiskBody, 7, "재고 위험 품목이 없습니다.");
+    return;
+  }
+
+  els.inventoryRiskBody.innerHTML = products.slice(0, 50)
+    .map((product) => `<tr>
+      <td><span class="status-pill ${getInventoryStatusKey(product.status)}">${escapeHtml(product.status)}</span></td>
+      <td>${escapeHtml(product.code)}</td>
+      <td class="product-name">${escapeHtml(product.name)}</td>
+      <td>${formatNumber(product.turnover)}</td>
+      <td>${formatNumber(product.stock)}</td>
+      <td>${formatWon(product.amount)}</td>
+      <td>${escapeHtml(getInventoryActionLabel(product.status))}</td>
+    </tr>`)
+    .join("");
+}
+
+function renderActionQueue(teams, cs) {
+  if (!els.actionQueueBody) return;
+  state.actionItems = buildActionItems(teams, cs);
+  els.actionSummary.textContent = state.actionItems.length
+    ? `처리 필요 ${formatNumber(state.actionItems.length)}건`
+    : "처리 필요 항목 없음";
+
+  if (!state.actionItems.length) {
+    renderTableEmpty(els.actionQueueBody, 5, "처리 필요 항목이 없습니다.");
+    return;
+  }
+
+  els.actionQueueBody.innerHTML = state.actionItems
+    .map((item) => renderActionRow(item))
+    .join("");
+}
+
+function renderChannelSales() {
+  if (!els.channelSalesBody) return;
+  const channels = buildChannelOperations();
+  els.channelSummary.textContent = channels.length
+    ? `CS DB 기준 ${formatNumber(channels.length)}개 채널`
+    : "채널 데이터 없음";
+
+  if (!channels.length) {
+    renderTableEmpty(els.channelSalesBody, 6, "CS DB 채널 데이터가 없습니다.");
+    return;
+  }
+
+  els.channelSalesBody.innerHTML = channels
+    .map((channel) => `<tr>
+      <td>${escapeHtml(channel.channel)}</td>
+      <td>${formatNumber(channel.count)}건</td>
+      <td>${formatWon(channel.cost)}</td>
+      <td>${formatPercent(channel.share)}</td>
+      <td class="product-name">${escapeHtml(channel.topProduct)}</td>
+      <td>${escapeHtml(channel.note)}</td>
+    </tr>`)
+    .join("");
+}
+
+function renderReports(teams, cs) {
+  if (!els.reportSummaryGrid || !els.reportIssueBody) return;
+  const total = teams.find((team) => team.team === "통합합계") || {};
+  const riskProducts = getInventoryRiskProducts();
+  const cards = [
+    { label: "매출 목표", value: formatWon(total.target || 0), sub: `달성률 ${formatPercent(total.rate || 0)}` },
+    { label: "현재 실적", value: formatWon(total.actual || 0), sub: `월간 ${formatPercent(total.monthlyRate || 0)}` },
+    { label: "재고 위험", value: `${formatNumber(riskProducts.length)}개`, sub: `위험/처분/관심 품목` },
+    { label: "CS 접수", value: `${formatNumber(cs.length)}건`, sub: "상담 DB 기준" },
+  ];
+
+  els.reportSummaryGrid.innerHTML = cards
+    .map((card) => `<div class="report-card">
+      <span>${escapeHtml(card.label)}</span>
+      <strong>${escapeHtml(card.value)}</strong>
+      <small>${escapeHtml(card.sub)}</small>
+    </div>`)
+    .join("");
+
+  const issues = state.actionItems.length ? state.actionItems : buildActionItems(teams, cs);
+  if (!issues.length) {
+    renderTableEmpty(els.reportIssueBody, 5, "주요 이슈가 없습니다.");
+    return;
+  }
+  els.reportIssueBody.innerHTML = issues.slice(0, 12).map((item) => renderActionRow(item)).join("");
+}
+
+function buildActionItems(teams, cs) {
+  const actions = [];
+  teams
+    .filter((team) => team.team !== "통합합계" && team.monthlyRate < 0.7)
+    .forEach((team) => {
+      actions.push({
+        type: "매출",
+        item: team.team,
+        basis: `${state.selectedMonth}월 달성률 ${formatPercent(team.monthlyRate)}`,
+        priority: team.monthlyRate < 0.4 ? "높음" : "보통",
+        status: "확인",
+      });
+    });
+
+  getInventoryRiskProducts().slice(0, 12).forEach((product) => {
+    actions.push({
+      type: "재고",
+      item: product.name,
+      basis: `${product.status} · 재고금액 ${formatWon(product.amount)}`,
+      priority: product.status === "위험" || product.status === "처분" ? "높음" : "보통",
+      status: "검토",
+    });
+  });
+
+  buildCsIssueItems(cs).forEach((issue) => actions.push(issue));
+  return actions.sort((a, b) => getPriorityRank(a.priority) - getPriorityRank(b.priority));
+}
+
+function buildCsIssueItems(cs) {
+  const counts = cs.reduce((acc, row) => {
+    const key = row.product || row.category;
+    if (!key) return acc;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(counts)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name, count]) => ({
+      type: "CS",
+      item: name,
+      basis: `상담 ${formatNumber(count)}건`,
+      priority: count >= 5 ? "높음" : "보통",
+      status: "확인",
+    }));
+}
+
+function buildChannelOperations() {
+  const totalCount = state.cs.length;
+  const groups = state.cs.reduce((acc, row) => {
+    const channel = row.channel || "미지정";
+    if (!acc[channel]) acc[channel] = { channel, count: 0, cost: 0, products: {} };
+    acc[channel].count += 1;
+    acc[channel].cost += row.totalCost || 0;
+    if (row.product) acc[channel].products[row.product] = (acc[channel].products[row.product] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.values(groups)
+    .map((group) => {
+      const topProduct = Object.entries(group.products).sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
+      return {
+        ...group,
+        share: totalCount ? group.count / totalCount : 0,
+        topProduct,
+        note: "CS DB 접수채널 기준",
+      };
+    })
+    .sort((a, b) => b.count - a.count || b.cost - a.cost);
+}
+
+function renderActionRow(item) {
+  return `<tr>
+    <td>${escapeHtml(item.type)}</td>
+    <td class="product-name">${escapeHtml(item.item)}</td>
+    <td>${escapeHtml(item.basis)}</td>
+    <td><span class="status-pill ${getPriorityClass(item.priority)}">${escapeHtml(item.priority)}</span></td>
+    <td>${escapeHtml(item.status)}</td>
+  </tr>`;
+}
+
+function getInventoryRiskProducts() {
+  return state.inventoryProducts
+    .filter((product) => ["위험", "처분", "관심"].includes(product.status))
+    .sort((a, b) => {
+      const priority = { 위험: 0, 처분: 1, 관심: 2 };
+      return priority[a.status] - priority[b.status] || b.amount - a.amount;
+    });
+}
+
+function getInventoryActionLabel(status) {
+  if (status === "위험") return "품절/재고 검토";
+  if (status === "처분") return "처분/재고 검토";
+  return "회전율 확인";
+}
+
+function normalizeInventoryStatus(status) {
+  if (status.includes("위험")) return "위험";
+  if (status.includes("처분")) return "처분";
+  if (status.includes("관심")) return "관심";
+  if (status.includes("안전")) return "안전";
+  return status;
+}
+
+function getPriorityRank(priority) {
+  return priority === "높음" ? 0 : priority === "보통" ? 1 : 2;
+}
+
+function getPriorityClass(priority) {
+  return priority === "높음" ? "danger" : priority === "보통" ? "watch" : "safe";
+}
+
+function formatUrl(url) {
+  if (!url) return "-";
+  return `<a href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">열기</a>`;
 }
 
 function setupAdminView(user) {
@@ -715,8 +953,8 @@ function openInventoryModal(statusLabel) {
   els.inventoryModalTitle.textContent = `${statusLabel} 제품 리스트`;
   els.inventoryModalSubtitle.textContent =
     statusKey === "all"
-      ? `DB 입력 회전율 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다. 안전재고 기준은 연간 ${formatNumber(ANNUAL_SAFE_TURNOVER)}회전 이상입니다.`
-      : `DB 입력 회전율 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다. 안전재고 기준은 연간 ${formatNumber(ANNUAL_SAFE_TURNOVER)}회전 이상입니다.`;
+      ? `제품회전율 시트 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`
+      : `제품회전율 시트 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`;
 
   if (!products.length) {
     renderTableEmpty(els.inventoryModalBody, 7, "제품회전율 시트 기준 해당 상태 제품이 없습니다.");
