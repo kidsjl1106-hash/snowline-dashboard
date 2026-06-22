@@ -175,7 +175,8 @@
 
   async function handleSignup(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const message = document.querySelector("#auth-message");
     const userId = String(form.get("userId") || "").trim();
     const normalizedUserId = userId.replace(/\s+/g, "");
@@ -208,7 +209,7 @@
         password,
       });
       setMessage(message, "가입 요청이 접수되었습니다. 임성진 관리자 승인 후 로그인할 수 있습니다.", "success");
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (error) {
       setMessage(message, error.message || "회원가입 요청에 실패했습니다.");
     }
