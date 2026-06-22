@@ -3,6 +3,7 @@ const SHEETS = {
   inventoryTurnover: "제품회전율",
 };
 const SHEET_FETCH_TIMEOUT_MS = 20000;
+const ANNUAL_SAFE_TURNOVER = 1;
 const TEAM_SHEETS = [
   { match: "영업1팀", name: "영업1팀", sheet: "영업1팀목표DB" },
   { match: "영업2팀", name: "영업2팀", sheet: "영업2팀목표DB" },
@@ -520,7 +521,7 @@ function renderInventory() {
     .map((item) => `<button class="inventory-item" type="button" data-status="${escapeAttribute(item.label)}">
       <span>${escapeHtml(item.label)}</span>
       <strong>${formatNumber(item.value)}</strong>
-      <small>제품회전율 기준 상세 보기</small>
+      <small>연간 ${formatNumber(ANNUAL_SAFE_TURNOVER)}회전 안전재고 기준</small>
     </button>`)
     .join("");
 
@@ -710,8 +711,8 @@ function openInventoryModal(statusLabel) {
   els.inventoryModalTitle.textContent = `${statusLabel} 제품 리스트`;
   els.inventoryModalSubtitle.textContent =
     statusKey === "all"
-      ? `제품회전율 시트 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`
-      : `제품회전율 시트 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`;
+      ? `DB 입력 회전율 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다. 안전재고 기준은 연간 ${formatNumber(ANNUAL_SAFE_TURNOVER)}회전 이상입니다.`
+      : `DB 입력 회전율 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다. 안전재고 기준은 연간 ${formatNumber(ANNUAL_SAFE_TURNOVER)}회전 이상입니다.`;
 
   if (!products.length) {
     renderTableEmpty(els.inventoryModalBody, 7, "제품회전율 시트 기준 해당 상태 제품이 없습니다.");
@@ -752,8 +753,8 @@ function isInventoryStatus(status) {
 }
 
 function getTurnoverStatus(turnover) {
-  if (turnover < 0.8) return "처분";
-  if (turnover < 1) return "관심";
+  if (turnover < ANNUAL_SAFE_TURNOVER * 0.8) return "처분";
+  if (turnover < ANNUAL_SAFE_TURNOVER) return "관심";
   return "안전";
 }
 
