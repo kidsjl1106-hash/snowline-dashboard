@@ -1,11 +1,9 @@
-const SHEET_ID = "1whGIBwNUDKzZp6hczvqNqExN_icFmwHPCt7385W15ws";
 const SHEETS = {
   cs: "CS DB",
   inventoryTurnover: "제품회전율",
-  familySale: "패밀리세일DB원본",
 };
-const PUBLIC_SHEET_JSONP_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
 const SHEET_FETCH_TIMEOUT_MS = 20000;
+const ANNUAL_SAFE_TURNOVER = 1;
 const TEAM_SHEETS = [
   { match: "영업1팀", name: "영업1팀", sheet: "영업1팀목표DB" },
   { match: "영업2팀", name: "영업2팀", sheet: "영업2팀목표DB" },
@@ -22,7 +20,7 @@ const HTML_ENTITIES = {
 };
 const BUILD_INFO = {
   channel: "GitHub Upload",
-  version: "2026.06.07",
+  version: "2026.06.22",
 };
 
 const state = {
@@ -30,14 +28,12 @@ const state = {
   selectedMonth: new Date().getMonth() + 1,
   productSort: "amount-desc",
   modalSort: "amount-desc",
-  priceSort: "drop-rate-desc",
   activeInventoryStatus: "",
   teamDetails: {},
   inventory: [],
   teams: [],
   products: [],
   inventoryProducts: [],
-  priceItems: [],
   actionItems: [],
   cs: [],
 };
@@ -59,8 +55,6 @@ const els = {
   salesBody: document.querySelector("#sales-body"),
   productsBody: document.querySelector("#products-body"),
   csBody: document.querySelector("#cs-body"),
-  priceMonitorSummary: document.querySelector("#price-monitor-summary"),
-  priceMonitorBody: document.querySelector("#price-monitor-body"),
   inventoryRiskSummary: document.querySelector("#inventory-risk-summary"),
   inventoryRiskBody: document.querySelector("#inventory-risk-body"),
   actionSummary: document.querySelector("#action-summary"),
@@ -132,14 +126,6 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const priceSortButton = event.target.closest("[data-price-sort]");
-  if (priceSortButton) {
-    state.priceSort = getNextPriceSort(priceSortButton.dataset.priceSort);
-    syncPriceSortButtons();
-    renderPriceMonitoring();
-    return;
-  }
-
   const memberActionButton = event.target.closest("[data-member-action]");
   if (memberActionButton) {
     updateMemberStatus(memberActionButton.dataset.userId, memberActionButton.dataset.memberAction);
@@ -166,18 +152,18 @@ function startDashboard(user) {
 
 function initBuildInfo() {
   if (!els.buildVersion) return;
-  els.buildVersion.textContent = `${BUILD_INFO.channel} 테스트 · ${BUILD_INFO.version}`;
+  const channelLabel = window.location.pathname.includes("/test/") ? "테스트" : "운영";
+  els.buildVersion.textContent = `${BUILD_INFO.channel} ${channelLabel} · ${BUILD_INFO.version}`;
 }
 
 async function loadDashboard() {
   setStatus("loading", "구글시트 데이터를 불러오는 중입니다.", "연결중");
 
   const errors = [];
-  const [csResult, inventoryResult, teamDetailsResult, familySaleResult] = await Promise.allSettled([
+  const [csResult, inventoryResult, teamDetailsResult] = await Promise.allSettled([
     fetchSheet(SHEETS.cs),
     fetchSheet(SHEETS.inventoryTurnover),
     fetchTeamDetails(),
-    fetchSheet(SHEETS.familySale),
   ]);
 
   if (csResult.status === "fulfilled") {
@@ -209,13 +195,6 @@ async function loadDashboard() {
     errors.push(`팀 목표: ${formatLoadError(teamDetailsResult.reason)}`);
   }
 
-  if (familySaleResult.status === "fulfilled") {
-    state.priceItems = parseFamilySalePriceItems(familySaleResult.value);
-  } else {
-    state.priceItems = [];
-    errors.push(`${SHEETS.familySale}: ${formatLoadError(familySaleResult.reason)}`);
-  }
-
   const hasData = state.cs.length || state.inventoryProducts.length || state.teams.length;
   if (hasAuthLoadError(errors) && window.SnowlineAuth?.invalidate) {
     window.SnowlineAuth.invalidate("관리자 승인이 완료된 뒤 다시 로그인해주세요. 이미 승인했다면 로그아웃 후 다시 로그인해주세요.");
@@ -232,54 +211,12 @@ async function loadDashboard() {
 }
 
 async function fetchSheet(sheetName) {
-  const data = await loadSheetJsonp(sheetName);
-  if (data.status !== "ok") {
-    const detail = data.errors?.map((error) => error.detailed_message || error.message).filter(Boolean).join(" / ");
-    throw new Error(detail || `${sheetName} 시트를 불러오지 못했습니다.`);
+  if (!window.SnowlineAuth?.request) {
+    throw new Error("로그인 세션이 필요합니다.");
   }
-  return tableToRows(data.table);
-}
-
-function loadSheetJsonp(sheetName) {
-  const callbackName = `snowlineSheet_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const url = `${PUBLIC_SHEET_JSONP_BASE_URL}?tqx=out:json;responseHandler:${callbackName}&headers=0&sheet=${encodeURIComponent(sheetName)}`;
-
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      script.remove();
-      delete window[callbackName];
-    };
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      reject(new Error("구글시트 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요."));
-    }, SHEET_FETCH_TIMEOUT_MS);
-
-    window[callbackName] = (payload) => {
-      cleanup();
-      resolve(payload);
-    };
-    script.onerror = () => {
-      cleanup();
-      reject(new Error(`${sheetName} 시트 공개 범위를 확인해주세요.`));
-    };
-    script.src = url;
-    document.head.appendChild(script);
-  });
-}
-
-function tableToRows(table = {}) {
-  const columns = table.cols || [];
-  return (table.rows || []).map((row) =>
-    columns.map((_, index) => {
-      const cell = row.c?.[index];
-      if (!cell) return "";
-      if (cell.f != null) return String(cell.f).trim();
-      if (cell.v == null) return "";
-      return String(cell.v).trim();
-    }),
-  );
+  const result = await window.SnowlineAuth.request({ action: "sheet", sheetName });
+  if (!result.csv) throw new Error(`${sheetName} 데이터를 불러오지 못했습니다.`);
+  return parseCsv(result.csv);
 }
 
 function formatLoadError(error) {
@@ -480,18 +417,22 @@ function parseInventoryProducts(rows) {
     .slice(1)
     .map((row) => {
       const turnover = toNumber(row[38]);
-      const sheetStatus = String(row[37] || "").trim();
+      const code = String(row[5] || "").trim();
       return {
-        code: row[5],
+        code,
         name: row[6],
         salePrice: toNumber(row[8]),
         stock: toNumber(row[34]),
         amount: toNumber(row[36]),
-        status: isInventoryStatus(sheetStatus) ? normalizeInventoryStatus(sheetStatus) : getTurnoverStatus(turnover),
+        status: getTurnoverStatus(turnover),
         turnover,
       };
     })
-    .filter((row) => row.code && row.name && isInventoryStatus(row.status));
+    .filter((row) => isSnowlineProductCode(row.code) && row.name && isInventoryStatus(row.status));
+}
+
+function isSnowlineProductCode(code) {
+  return String(code || "").trim().toUpperCase().startsWith("SN");
 }
 
 function parseCs(rows) {
@@ -525,36 +466,10 @@ function render() {
   renderProducts(els.productsBody, products);
   renderSales(teams);
   renderCs(cs);
-  renderPriceMonitoring();
   renderInventoryRisk();
   renderActionQueue(teams, cs);
   renderChannelSales();
   renderReports(teams, cs);
-}
-
-function parseFamilySalePriceItems(rows) {
-  return rows
-    .slice(2)
-    .map((row) => {
-      const basePrice = toNumber(row[12]);
-      const lowestPrice = toNumber(row[17]);
-      const dropAmount = Math.max(0, basePrice - lowestPrice);
-      const dropRate = basePrice ? dropAmount / basePrice : 0;
-      return {
-        category: row[0],
-        code: row[1],
-        name: [row[2], row[4]].filter(Boolean).join(" / "),
-        basePrice,
-        lowestPrice,
-        dropRate,
-        dropAmount,
-        seller: "패밀리세일",
-        url: "",
-        note: row[15] || row[16] || "패밀리세일DB원본 기준",
-      };
-    })
-    .filter((item) => item.code && item.name && item.basePrice > 0 && item.lowestPrice > 0 && item.dropAmount > 0)
-    .sort((a, b) => b.dropRate - a.dropRate);
 }
 
 function renderMonthToggle() {
@@ -684,33 +599,6 @@ function renderCs(rows) {
       <td class="cs-content">${escapeHtml(row.content)}</td>
       <td>${formatWon(row.totalCost)}</td>
       <td>${escapeHtml(row.manager)}</td>
-    </tr>`)
-    .join("");
-}
-
-function renderPriceMonitoring() {
-  if (!els.priceMonitorBody) return;
-  syncPriceSortButtons();
-  const items = state.priceItems.slice().sort((a, b) => comparePriceItems(a, b, state.priceSort));
-  els.priceMonitorSummary.textContent = items.length
-    ? `전체 ${formatNumber(items.length)}개 · ${getPriceSortLabel(state.priceSort)}`
-    : "가격 데이터 연결 대기";
-
-  if (!items.length) {
-    renderTableEmpty(els.priceMonitorBody, 8, "가격 모니터링 DB 연결 후 표시됩니다.");
-    return;
-  }
-
-  els.priceMonitorBody.innerHTML = items
-    .map((item) => `<tr>
-      <td class="product-name">${escapeHtml(item.name)}</td>
-      <td>${formatWon(item.basePrice)}</td>
-      <td>${formatWon(item.lowestPrice)}</td>
-      <td>${formatPercent(item.dropRate)}</td>
-      <td>${formatWon(item.dropAmount)}</td>
-      <td>${escapeHtml(item.seller)}</td>
-      <td>${formatUrl(item.url)}</td>
-      <td>${escapeHtml(item.note)}</td>
     </tr>`)
     .join("");
 }
@@ -900,54 +788,9 @@ function getInventoryRiskProducts() {
     });
 }
 
-function comparePriceItems(a, b, sortKey) {
-  if (sortKey === "name-asc") return String(a.name || "").localeCompare(String(b.name || ""), "ko");
-  if (sortKey === "base-price-desc") return Number(b.basePrice || 0) - Number(a.basePrice || 0);
-  if (sortKey === "lowest-price-asc") return Number(a.lowestPrice || 0) - Number(b.lowestPrice || 0);
-  if (sortKey === "drop-amount-desc") return Number(b.dropAmount || 0) - Number(a.dropAmount || 0);
-  if (sortKey === "drop-rate-asc") return Number(a.dropRate || 0) - Number(b.dropRate || 0);
-  return Number(b.dropRate || 0) - Number(a.dropRate || 0);
-}
-
-function getNextPriceSort(requestedSort) {
-  if (!requestedSort) return state.priceSort;
-  if (state.priceSort === requestedSort && requestedSort.endsWith("-desc")) {
-    return requestedSort.replace("-desc", "-asc");
-  }
-  if (state.priceSort === requestedSort.replace("-desc", "-asc")) {
-    return requestedSort;
-  }
-  return requestedSort;
-}
-
-function syncPriceSortButtons() {
-  document.querySelectorAll("[data-price-sort]").forEach((button) => {
-    const sort = button.dataset.priceSort;
-    const ascPair = sort?.endsWith("-desc") ? sort.replace("-desc", "-asc") : "";
-    const active = state.priceSort === sort || state.priceSort === ascPair;
-    button.classList.toggle("active", active);
-    button.textContent = getPriceSortButtonLabel(button.textContent.replace(/[↑↓]/g, "").trim(), sort, active);
-  });
-}
-
-function getPriceSortButtonLabel(label, sort, active) {
-  if (!active || !sort) return label;
-  const direction = state.priceSort.endsWith("-asc") ? "↑" : "↓";
-  return `${label} ${direction}`;
-}
-
-function getPriceSortLabel(sortKey) {
-  if (sortKey === "name-asc") return "상품명순";
-  if (sortKey === "base-price-desc") return "기준가격 높은순";
-  if (sortKey === "lowest-price-asc") return "최저가 낮은순";
-  if (sortKey === "drop-amount-desc") return "하락액 큰순";
-  if (sortKey === "drop-rate-asc") return "하락률 낮은순";
-  return "하락률 높은순";
-}
-
 function getInventoryActionLabel(status) {
   if (status === "위험") return "품절/재고 검토";
-  if (status === "처분") return "처분/가격 검토";
+  if (status === "처분") return "처분/재고 검토";
   return "회전율 확인";
 }
 
@@ -1152,8 +995,8 @@ function isInventoryStatus(status) {
 }
 
 function getTurnoverStatus(turnover) {
-  if (turnover < 0.8) return "처분";
-  if (turnover < 1) return "관심";
+  if (turnover < ANNUAL_SAFE_TURNOVER * 0.8) return "처분";
+  if (turnover < ANNUAL_SAFE_TURNOVER) return "관심";
   return "안전";
 }
 
