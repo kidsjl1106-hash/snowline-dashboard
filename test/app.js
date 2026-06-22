@@ -55,6 +55,8 @@ const els = {
   salesBody: document.querySelector("#sales-body"),
   productsBody: document.querySelector("#products-body"),
   csBody: document.querySelector("#cs-body"),
+  csEntryForm: document.querySelector("#cs-entry-form"),
+  csEntryMessage: document.querySelector("#cs-entry-message"),
   inventoryRiskSummary: document.querySelector("#inventory-risk-summary"),
   inventoryRiskBody: document.querySelector("#inventory-risk-body"),
   actionSummary: document.querySelector("#action-summary"),
@@ -94,6 +96,11 @@ els.searchInput.addEventListener("input", (event) => {
 
 els.refreshButton.addEventListener("click", loadDashboard);
 els.membersRefresh?.addEventListener("click", loadMembers);
+els.csEntryForm?.addEventListener("submit", handleCsSubmit);
+els.csEntryForm?.addEventListener("reset", () => {
+  setCsEntryMessage("");
+  window.setTimeout(setDefaultCsDate, 0);
+});
 els.monthToggle.addEventListener("click", (event) => {
   const button = event.target.closest("[data-month]");
   if (!button) return;
@@ -147,6 +154,7 @@ function startDashboard(user) {
   if (dashboardStarted) return;
   dashboardStarted = true;
   setupAdminView(user);
+  setDefaultCsDate();
   loadDashboard();
 }
 
@@ -601,6 +609,67 @@ function renderCs(rows) {
       <td>${escapeHtml(row.manager)}</td>
     </tr>`)
     .join("");
+}
+
+async function handleCsSubmit(event) {
+  event.preventDefault();
+  if (!els.csEntryForm) return;
+
+  const form = new FormData(els.csEntryForm);
+  const entry = {
+    date: normalizeCsDate(form.get("date")),
+    channel: form.get("channel"),
+    customer: form.get("customer"),
+    category: form.get("category"),
+    code: form.get("code"),
+    product: form.get("product"),
+    content: form.get("content"),
+    totalCost: form.get("totalCost"),
+    manager: form.get("manager"),
+  };
+
+  if (!String(entry.channel || "").trim()) {
+    setCsEntryMessage("채널을 입력해주세요.", "error");
+    return;
+  }
+  if (!String(entry.content || "").trim()) {
+    setCsEntryMessage("상담내용을 입력해주세요.", "error");
+    return;
+  }
+
+  setCsEntryMessage("CS 상담을 등록하는 중입니다.");
+  try {
+    await window.SnowlineAuth.request({ action: "addCs", entry });
+    els.csEntryForm.reset();
+    setDefaultCsDate();
+    setCsEntryMessage("CS 상담이 등록되었습니다.", "ready");
+    await loadDashboard();
+  } catch (error) {
+    setCsEntryMessage(error.message || "CS 상담을 등록하지 못했습니다.", "error");
+  }
+}
+
+function setDefaultCsDate() {
+  const dateInput = els.csEntryForm?.elements?.date;
+  if (!dateInput || dateInput.value) return;
+
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  dateInput.value = now.toISOString().slice(0, 16);
+}
+
+function normalizeCsDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return new Date().toLocaleString("ko-KR");
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString("ko-KR");
+}
+
+function setCsEntryMessage(message, type = "") {
+  if (!els.csEntryMessage) return;
+  els.csEntryMessage.textContent = message;
+  els.csEntryMessage.className = `form-status ${type}`.trim();
 }
 
 function renderInventoryRisk() {

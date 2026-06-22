@@ -31,7 +31,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -247,6 +248,17 @@ h2 {
   padding: 0 15px;
   background: var(--accent);
   color: #ffffff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.secondary-button {
+  min-height: 43px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 15px;
+  background: #ffffff;
+  color: var(--text);
   font-weight: 900;
   cursor: pointer;
 }
@@ -643,6 +655,73 @@ h2 {
   font-weight: 800;
 }
 
+.cs-entry-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 18px 18px;
+}
+
+.cs-entry-form label {
+  min-width: 0;
+}
+
+.cs-entry-form span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cs-entry-form input,
+.cs-entry-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 11px;
+  background: #ffffff;
+  color: var(--text);
+  outline: none;
+}
+
+.cs-entry-form input:focus,
+.cs-entry-form textarea:focus {
+  border-color: var(--accent);
+}
+
+.cs-entry-form textarea {
+  resize: vertical;
+}
+
+.cs-entry-form .wide-field {
+  grid-column: span 3;
+}
+
+.cs-entry-actions {
+  grid-column: span 3;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-status {
+  min-height: 20px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.form-status.ready {
+  color: var(--safe);
+}
+
+.form-status.error {
+  color: var(--danger);
+}
+
 .table-wrap {
   width: 100%;
   min-width: 0;
@@ -993,6 +1072,16 @@ td.cs-content {
   .inventory-grid,
   .report-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cs-entry-form {
+    grid-template-columns: 1fr;
+    padding: 0 14px 14px;
+  }
+
+  .cs-entry-form .wide-field,
+  .cs-entry-actions {
+    grid-column: span 1;
   }
 
   .kpi-grid {
