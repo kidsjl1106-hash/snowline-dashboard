@@ -34,7 +34,6 @@ const state = {
   teams: [],
   products: [],
   inventoryProducts: [],
-  actionItems: [],
   cs: [],
 };
 let dashboardStarted = false;
@@ -59,8 +58,6 @@ const els = {
   csEntryMessage: document.querySelector("#cs-entry-message"),
   inventoryRiskSummary: document.querySelector("#inventory-risk-summary"),
   inventoryRiskBody: document.querySelector("#inventory-risk-body"),
-  actionSummary: document.querySelector("#action-summary"),
-  actionQueueBody: document.querySelector("#action-queue-body"),
   channelSummary: document.querySelector("#channel-summary"),
   channelSalesBody: document.querySelector("#channel-sales-body"),
   reportSummaryGrid: document.querySelector("#report-summary-grid"),
@@ -475,7 +472,6 @@ function render() {
   renderSales(teams);
   renderCs(cs);
   renderInventoryRisk();
-  renderActionQueue(teams, cs);
   renderChannelSales();
   renderReports(teams, cs);
 }
@@ -637,12 +633,20 @@ async function handleCsSubmit(event) {
     return;
   }
 
+  const registeredCustomer = String(entry.customer || "").trim();
+
   setCsEntryMessage("CS 상담을 등록하는 중입니다.");
   try {
     await window.SnowlineAuth.request({ action: "addCs", entry });
     els.csEntryForm.reset();
     setDefaultCsDate();
-    setCsEntryMessage("CS 상담이 등록되었습니다.", "ready");
+    if (registeredCustomer) {
+      state.query = registeredCustomer.toLowerCase();
+      if (els.searchInput) els.searchInput.value = registeredCustomer;
+      setCsEntryMessage(`CS 상담이 등록되었습니다. "${registeredCustomer}" 고객명으로 조회했습니다.`, "ready");
+    } else {
+      setCsEntryMessage("CS 상담이 등록되었습니다.", "ready");
+    }
     await loadDashboard();
   } catch (error) {
     setCsEntryMessage(error.message || "CS 상담을 등록하지 못했습니다.", "error");
@@ -697,23 +701,6 @@ function renderInventoryRisk() {
     .join("");
 }
 
-function renderActionQueue(teams, cs) {
-  if (!els.actionQueueBody) return;
-  state.actionItems = buildActionItems(teams, cs);
-  els.actionSummary.textContent = state.actionItems.length
-    ? `처리 필요 ${formatNumber(state.actionItems.length)}건`
-    : "처리 필요 항목 없음";
-
-  if (!state.actionItems.length) {
-    renderTableEmpty(els.actionQueueBody, 5, "처리 필요 항목이 없습니다.");
-    return;
-  }
-
-  els.actionQueueBody.innerHTML = state.actionItems
-    .map((item) => renderActionRow(item))
-    .join("");
-}
-
 function renderChannelSales() {
   if (!els.channelSalesBody) return;
   const channels = buildChannelOperations();
@@ -757,7 +744,7 @@ function renderReports(teams, cs) {
     </div>`)
     .join("");
 
-  const issues = state.actionItems.length ? state.actionItems : buildActionItems(teams, cs);
+  const issues = buildActionItems(teams, cs);
   if (!issues.length) {
     renderTableEmpty(els.reportIssueBody, 5, "주요 이슈가 없습니다.");
     return;
