@@ -5,6 +5,7 @@
   const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
   const requestTimeoutMs = Number(config.requestTimeoutMs || 15000);
   let session = null;
+  let authFlowId = 0;
 
   window.SnowlineAuth = {
     required: true,
@@ -21,7 +22,7 @@
 
     const saved = readSession();
     if (saved?.token && apiUrl) {
-      verify(saved.token);
+      verify(saved.token, ++authFlowId);
       return;
     }
 
@@ -157,8 +158,12 @@
 
   async function handleLogin(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const loginFlowId = ++authFlowId;
+    const formElement = event.currentTarget;
+    const submitButton = formElement.querySelector('button[type="submit"]');
+    const form = new FormData(formElement);
     const message = document.querySelector("#auth-message");
+    if (submitButton) submitButton.disabled = true;
     setMessage(message, "로그인 확인 중입니다.");
 
     try {
@@ -167,9 +172,11 @@
         userId: form.get("userId"),
         password: form.get("password"),
       });
-      saveAndUnlock(result);
+      saveAndUnlock(result, loginFlowId);
     } catch (error) {
-      setMessage(message, error.message || "로그인에 실패했습니다.");
+      if (loginFlowId === authFlowId) setMessage(message, error.message || "로그인에 실패했습니다.");
+    } finally {
+      if (loginFlowId === authFlowId && submitButton) submitButton.disabled = false;
     }
   }
 
@@ -215,12 +222,14 @@
     }
   }
 
-  async function verify(token) {
+  async function verify(token, flowId) {
     try {
       const result = await callApi({ action: "me", token });
-      saveAndUnlock({ token, user: result.user });
+      saveAndUnlock({ token, user: result.user }, flowId);
     } catch (error) {
-      invalidateSession(error.message || "세션이 만료되었습니다. 다시 로그인해주세요.");
+      if (!flowId || flowId === authFlowId) {
+        invalidateSession(error.message || "세션이 만료되었습니다. 다시 로그인해주세요.");
+      }
     }
   }
 
@@ -272,7 +281,8 @@
     });
   }
 
-  function saveAndUnlock(result) {
+  function saveAndUnlock(result, flowId) {
+    if (flowId && flowId !== authFlowId) return;
     if (!result?.token || !result?.user) {
       throw new Error("로그인 서버 응답이 올바르지 않습니다.");
     }
@@ -307,7 +317,9 @@
     logoutButton.textContent = "로그아웃";
     logoutButton.addEventListener("click", logout);
     bar.appendChild(logoutButton);
-    document.body.appendChild(bar);
+
+    const sidebar = document.querySelector(".sidebar");
+    (sidebar || document.body).appendChild(bar);
   }
 
   function logout() {

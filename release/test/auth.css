@@ -123,24 +123,26 @@
 }
 
 .auth-user-bar {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 15;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  width: 100%;
+  margin-top: 10px;
   padding: 10px;
   border: 1px solid rgba(17, 24, 39, 0.12);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.12);
+  background: #ffffff;
 }
 
 .auth-user-bar span {
+  min-width: 0;
+  overflow: hidden;
   color: #374151;
   font-size: 13px;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .auth-logout-button {
@@ -148,14 +150,80 @@
   padding: 0 10px;
 }
 
+.auth-guide {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(17, 24, 39, 0.42);
+}
+
+.auth-guide.open {
+  display: flex;
+}
+
+.auth-guide-card {
+  width: min(480px, 100%);
+  border-radius: 8px;
+  padding: 26px;
+  background: #ffffff;
+  box-shadow: 0 22px 70px rgba(17, 24, 39, 0.24);
+}
+
+.auth-guide-card h2 {
+  margin: 0 0 10px;
+  color: #111827;
+  font-size: 22px;
+}
+
+.auth-guide-alert {
+  margin: 0 0 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(249, 115, 22, 0.1);
+  color: #ea580c;
+  font-weight: 800;
+}
+
+.auth-guide-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #374151;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.auth-guide-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.auth-guide-actions button {
+  min-height: 42px;
+  border: 1px solid #f97316;
+  border-radius: 8px;
+  background: #f97316;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.auth-guide-actions button.secondary {
+  background: #ffffff;
+  color: #f97316;
+}
+
 @media (max-width: 640px) {
   .auth-card {
     padding: 24px 20px;
   }
 
-  .auth-user-bar {
-    right: 12px;
-    left: 12px;
-    justify-content: space-between;
+  .auth-guide-actions {
+    grid-template-columns: 1fr;
   }
 }

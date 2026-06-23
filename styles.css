@@ -46,6 +46,8 @@ textarea {
 .sidebar {
   position: sticky;
   top: 0;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   min-width: 0;
   padding: 24px 18px;
@@ -132,7 +134,7 @@ textarea {
 .sheet-note {
   position: sticky;
   bottom: 18px;
-  margin-top: 18px;
+  margin-top: auto;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;

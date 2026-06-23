@@ -123,24 +123,26 @@
 }
 
 .auth-user-bar {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 15;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  width: 100%;
+  margin-top: 10px;
   padding: 10px;
   border: 1px solid rgba(17, 24, 39, 0.12);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.12);
+  background: #ffffff;
 }
 
 .auth-user-bar span {
+  min-width: 0;
+  overflow: hidden;
   color: #374151;
   font-size: 13px;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .auth-logout-button {
@@ -219,12 +221,6 @@
 @media (max-width: 640px) {
   .auth-card {
     padding: 24px 20px;
-  }
-
-  .auth-user-bar {
-    right: 12px;
-    left: 12px;
-    justify-content: space-between;
   }
 
   .auth-guide-actions {

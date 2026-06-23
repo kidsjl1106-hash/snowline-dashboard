@@ -317,7 +317,9 @@
     logoutButton.textContent = "로그아웃";
     logoutButton.addEventListener("click", logout);
     bar.appendChild(logoutButton);
-    document.body.appendChild(bar);
+
+    const sidebar = document.querySelector(".sidebar");
+    (sidebar || document.body).appendChild(bar);
   }
 
   function logout() {
