@@ -56,6 +56,7 @@ const els = {
   csBody: document.querySelector("#cs-body"),
   csEntryForm: document.querySelector("#cs-entry-form"),
   csEntryMessage: document.querySelector("#cs-entry-message"),
+  csSubmitButton: document.querySelector("#cs-submit-button"),
   inventoryRiskSummary: document.querySelector("#inventory-risk-summary"),
   inventoryRiskBody: document.querySelector("#inventory-risk-body"),
   channelSummary: document.querySelector("#channel-summary"),
@@ -96,6 +97,7 @@ els.membersRefresh?.addEventListener("click", loadMembers);
 els.csEntryForm?.addEventListener("submit", handleCsSubmit);
 els.csEntryForm?.addEventListener("reset", () => {
   setCsEntryMessage("");
+  setCsEditMode(null);
   window.setTimeout(setDefaultCsDate, 0);
 });
 els.monthToggle.addEventListener("click", (event) => {
@@ -133,6 +135,12 @@ document.addEventListener("click", (event) => {
   const memberActionButton = event.target.closest("[data-member-action]");
   if (memberActionButton) {
     updateMemberStatus(memberActionButton.dataset.userId, memberActionButton.dataset.memberAction);
+    return;
+  }
+
+  const csEditButton = event.target.closest("[data-cs-edit]");
+  if (csEditButton) {
+    startCsEdit(Number(csEditButton.dataset.csEdit));
   }
 });
 
@@ -512,7 +520,8 @@ function isSnowlineProductCode(code) {
 function parseCs(rows) {
   return rows
     .slice(1)
-    .map((row) => ({
+    .map((row, index) => ({
+      rowNumber: index + 2,
       date: row[0],
       channel: row[1],
       customer: row[2],
@@ -661,7 +670,7 @@ function renderProducts(target, products) {
 }
 
 function renderCs(rows) {
-  if (!rows.length) return renderTableEmpty(els.csBody, 8, "CS 상담 데이터가 없습니다.");
+  if (!rows.length) return renderTableEmpty(els.csBody, 9, "CS 상담 데이터가 없습니다.");
   els.csBody.innerHTML = rows
     .map((row) => `<tr>
       <td>${escapeHtml(row.date)}</td>
@@ -672,6 +681,7 @@ function renderCs(rows) {
       <td class="cs-content">${escapeHtml(row.content)}</td>
       <td>${formatWon(row.totalCost)}</td>
       <td>${escapeHtml(row.manager)}</td>
+      <td class="table-actions"><button class="secondary-button compact-button" type="button" data-cs-edit="${row.rowNumber}">수정</button></td>
     </tr>`)
     .join("");
 }
@@ -681,8 +691,10 @@ async function handleCsSubmit(event) {
   if (!els.csEntryForm) return;
 
   const form = new FormData(els.csEntryForm);
+  const rawDate = form.get("date");
   const entry = {
-    date: normalizeCsDate(form.get("date")),
+    rowNumber: Number(form.get("rowNumber")) || 0,
+    date: rawDate ? normalizeCsDate(rawDate) : "",
     channel: form.get("channel"),
     customer: form.get("customer"),
     category: form.get("category"),
@@ -703,22 +715,62 @@ async function handleCsSubmit(event) {
   }
 
   const registeredCustomer = String(entry.customer || "").trim();
+  const isEdit = Boolean(entry.rowNumber);
 
-  setCsEntryMessage("CS 상담을 등록하는 중입니다.");
+  setCsEntryMessage(isEdit ? "CS 상담을 수정하는 중입니다." : "CS 상담을 등록하는 중입니다.");
   try {
-    await window.SnowlineAuth.request({ action: "addCs", entry });
+    await window.SnowlineAuth.request({ action: isEdit ? "updateCs" : "addCs", entry });
     els.csEntryForm.reset();
+    setCsEditMode(null);
     setDefaultCsDate();
     if (registeredCustomer) {
       state.query = registeredCustomer.toLowerCase();
       if (els.searchInput) els.searchInput.value = registeredCustomer;
-      setCsEntryMessage(`CS 상담이 등록되었습니다. "${registeredCustomer}" 고객명으로 조회했습니다.`, "ready");
     } else {
-      setCsEntryMessage("CS 상담이 등록되었습니다.", "ready");
+      state.query = "";
+      if (els.searchInput) els.searchInput.value = "";
     }
     await loadDashboard();
+    if (registeredCustomer) {
+      setCsEntryMessage(`CS 상담이 ${isEdit ? "수정" : "등록"}되었습니다. "${registeredCustomer}" 고객명으로 조회했습니다.`, "ready");
+    } else {
+      setCsEntryMessage(`CS 상담이 ${isEdit ? "수정" : "등록"}되었습니다.`, "ready");
+    }
   } catch (error) {
-    setCsEntryMessage(error.message || "CS 상담을 등록하지 못했습니다.", "error");
+    setCsEntryMessage(error.message || `CS 상담을 ${isEdit ? "수정" : "등록"}하지 못했습니다.`, "error");
+  }
+}
+
+function startCsEdit(rowNumber) {
+  if (!els.csEntryForm || !rowNumber) return;
+  const row = state.cs.find((item) => item.rowNumber === rowNumber);
+  if (!row) {
+    setCsEntryMessage("수정할 CS 상담을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.", "error");
+    return;
+  }
+
+  const form = els.csEntryForm.elements;
+  form.rowNumber.value = row.rowNumber;
+  form.date.value = toDateTimeLocalValue(row.date);
+  form.channel.value = row.channel || "";
+  form.customer.value = row.customer || "";
+  form.category.value = row.category || "";
+  form.code.value = row.code || "";
+  form.product.value = row.product || "";
+  form.content.value = row.content || "";
+  form.totalCost.value = row.totalCost ? String(row.totalCost) : "";
+  form.manager.value = row.manager || "";
+  setCsEditMode(row.rowNumber);
+  setCsEntryMessage("CS 상담 내용을 수정한 뒤 CS 수정 버튼을 눌러주세요.", "ready");
+  els.csEntryForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setCsEditMode(rowNumber) {
+  if (els.csEntryForm?.elements?.rowNumber) {
+    els.csEntryForm.elements.rowNumber.value = rowNumber || "";
+  }
+  if (els.csSubmitButton) {
+    els.csSubmitButton.textContent = rowNumber ? "CS 수정" : "CS 등록";
   }
 }
 
@@ -737,6 +789,23 @@ function normalizeCsDate(value) {
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return raw;
   return date.toLocaleString("ko-KR");
+}
+
+function toDateTimeLocalValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const normalized = raw
+    .replace(/\.\s*/g, "-")
+    .replace(/-\s*(오전|AM)\s*/i, " ")
+    .replace(/-\s*(오후|PM)\s*/i, " PM ")
+    .replace(/\s*(오전|AM)\s*/i, " ")
+    .replace(/\s*(오후|PM)\s*/i, " PM ");
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return "";
+
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
 }
 
 function setCsEntryMessage(message, type = "") {

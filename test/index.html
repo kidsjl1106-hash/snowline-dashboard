@@ -9,7 +9,7 @@
     <title>SNOWLINE 영업 대시보드 | GitHub Upload</title>
     <link rel="icon" href="./assets/logo.png?v=2026060701" />
     <link rel="stylesheet" href="./auth.css?v=2026060701" />
-    <link rel="stylesheet" href="./styles.css?v=2026062204" />
+    <link rel="stylesheet" href="./styles.css?v=2026062301" />
   </head>
   <body class="auth-locked">
     <div class="app-shell">
@@ -251,6 +251,7 @@
               </div>
             </div>
             <form class="cs-entry-form" id="cs-entry-form">
+              <input name="rowNumber" type="hidden" />
               <label>
                 <span>상담일시</span>
                 <input name="date" type="datetime-local" />
@@ -288,7 +289,7 @@
                 <input name="manager" type="text" autocomplete="off" />
               </label>
               <div class="cs-entry-actions">
-                <button class="refresh-button" type="submit">CS 등록</button>
+                <button class="refresh-button" id="cs-submit-button" type="submit">CS 등록</button>
                 <button class="secondary-button" type="reset">초기화</button>
                 <span id="cs-entry-message" class="form-status"></span>
               </div>
@@ -305,6 +306,7 @@
                     <th>상담내용</th>
                     <th>총 청구비용</th>
                     <th>상담자</th>
+                    <th>관리</th>
                   </tr>
                 </thead>
                 <tbody id="cs-body"></tbody>
@@ -469,6 +471,6 @@
 
     <script src="./auth-config.js?v=2026062303"></script>
     <script src="./auth.js?v=2026062302"></script>
-    <script src="./app.js?v=2026062302"></script>
+    <script src="./app.js?v=2026062304"></script>
   </body>
 </html>

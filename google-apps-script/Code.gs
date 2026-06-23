@@ -60,6 +60,7 @@ function doPost(e) {
     if (action === "dashboard") return json_(dashboard_(payload));
     if (action === "sheet") return json_(sheet_(payload));
     if (action === "addCs") return json_(addCs_(payload));
+    if (action === "updateCs") return json_(updateCs_(payload));
     if (action === "listPending") return json_(listPending_(payload));
     if (action === "listUsers") return json_(listUsers_(payload));
     if (action === "setUserStatus") return json_(setUserStatus_(payload));
@@ -186,18 +187,48 @@ function buildSpreadsheetAccessMessage_(error) {
 function addCs_(payload) {
   const user = requireUser_(payload.token);
   const entry = payload.entry || {};
+  const sheet = csSheet_();
+  const row = buildCsRow_(entry, user);
+
+  sheet.appendRow(row);
+  audit_("cs_add", user.userId, `${row[1]} / ${row[5] || row[2] || "no_subject"}`);
+  return { ok: true, rowNumber: sheet.getLastRow() };
+}
+
+function updateCs_(payload) {
+  const user = requireUser_(payload.token);
+  const entry = payload.entry || {};
+  const rowNumber = Number(entry.rowNumber || 0);
+
+  if (!rowNumber || rowNumber < 2) throw new Error("수정할 CS 상담을 찾을 수 없습니다.");
+
+  const sheet = csSheet_();
+  const lastRow = sheet.getLastRow();
+  if (rowNumber > lastRow) throw new Error("수정할 CS 상담을 찾을 수 없습니다.");
+
+  const currentRow = sheet.getRange(rowNumber, 1, 1, 15).getDisplayValues()[0];
+  const row = buildCsRow_(entry, user, currentRow[0]);
+  sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
+  audit_("cs_update", user.userId, `${rowNumber} / ${row[1]} / ${row[5] || row[2] || "no_subject"}`);
+  return { ok: true, rowNumber };
+}
+
+function csSheet_() {
+  const sheet = SpreadsheetApp.openById(CONFIG.spreadsheetId).getSheetByName("CS DB");
+  if (!sheet) throw new Error("CS DB 시트를 찾을 수 없습니다.");
+  return sheet;
+}
+
+function buildCsRow_(entry, user, fallbackDate) {
   const channel = cleanText_(entry.channel);
   const content = cleanText_(entry.content);
 
   if (!channel) throw new Error("채널을 입력해주세요.");
   if (!content) throw new Error("상담내용을 입력해주세요.");
 
-  const sheet = SpreadsheetApp.openById(CONFIG.spreadsheetId).getSheetByName("CS DB");
-  if (!sheet) throw new Error("CS DB 시트를 찾을 수 없습니다.");
-
   const manager = cleanText_(entry.manager) || user.displayName || user.userId;
-  const row = [
-    cleanText_(entry.date) || Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy. M. d. a h:mm:ss"),
+  return [
+    cleanText_(entry.date) || fallbackDate || Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy. M. d. a h:mm:ss"),
     channel,
     cleanText_(entry.customer),
     cleanText_(entry.category),
@@ -213,10 +244,6 @@ function addCs_(payload) {
     parseNumber_(entry.totalCost),
     manager,
   ];
-
-  sheet.appendRow(row);
-  audit_("cs_add", user.userId, `${channel} / ${cleanText_(entry.product) || cleanText_(entry.customer) || "no_subject"}`);
-  return { ok: true };
 }
 
 function listPending_(payload) {
