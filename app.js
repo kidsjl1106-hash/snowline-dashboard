@@ -25,6 +25,7 @@ const BUILD_INFO = {
 
 const state = {
   query: "",
+  csCustomerQuery: "",
   selectedMonth: new Date().getMonth() + 1,
   productSort: "amount-desc",
   modalSort: "amount-desc",
@@ -57,6 +58,9 @@ const els = {
   csEntryForm: document.querySelector("#cs-entry-form"),
   csEntryMessage: document.querySelector("#cs-entry-message"),
   csSubmitButton: document.querySelector("#cs-submit-button"),
+  csCustomerSearch: document.querySelector("#cs-customer-search"),
+  csCustomerClear: document.querySelector("#cs-customer-clear"),
+  csSearchSummary: document.querySelector("#cs-search-summary"),
   inventoryRiskSummary: document.querySelector("#inventory-risk-summary"),
   inventoryRiskBody: document.querySelector("#inventory-risk-body"),
   channelSummary: document.querySelector("#channel-summary"),
@@ -95,6 +99,15 @@ els.searchInput.addEventListener("input", (event) => {
 els.refreshButton.addEventListener("click", loadDashboard);
 els.membersRefresh?.addEventListener("click", loadMembers);
 els.csEntryForm?.addEventListener("submit", handleCsSubmit);
+els.csCustomerSearch?.addEventListener("input", (event) => {
+  state.csCustomerQuery = event.target.value.trim().toLowerCase();
+  render();
+});
+els.csCustomerClear?.addEventListener("click", () => {
+  state.csCustomerQuery = "";
+  if (els.csCustomerSearch) els.csCustomerSearch.value = "";
+  render();
+});
 els.csEntryForm?.addEventListener("reset", () => {
   setCsEntryMessage("");
   setCsEditMode(null);
@@ -550,7 +563,7 @@ function parseCs(rows) {
 function render() {
   const products = filterRows(state.products, ["code", "name"]);
   const teams = filterRows(state.teams, ["team"]);
-  const cs = filterRows(state.cs, ["customer", "category", "code", "product", "content", "manager"]);
+  const cs = filterCsRows(filterRows(state.cs, ["customer", "category", "code", "product", "content", "manager"]));
 
   renderKpis();
   renderMonthToggle();
@@ -561,6 +574,7 @@ function render() {
   renderProducts(els.productsBody, products);
   renderSales(teams);
   renderCs(cs);
+  renderCsSearchSummary(cs);
   renderInventoryRisk();
   renderChannelSales();
   renderReports(teams, cs);
@@ -698,6 +712,21 @@ function renderCs(rows) {
     .join("");
 }
 
+function filterCsRows(rows) {
+  if (!state.csCustomerQuery) return rows;
+  return rows.filter((row) => String(row.customer || "").toLowerCase().includes(state.csCustomerQuery));
+}
+
+function renderCsSearchSummary(rows) {
+  if (!els.csSearchSummary) return;
+  const customer = els.csCustomerSearch?.value?.trim();
+  if (customer) {
+    els.csSearchSummary.textContent = `${customer} 상담내역 ${formatNumber(rows.length)}건`;
+    return;
+  }
+  els.csSearchSummary.textContent = `전체 상담내역 ${formatNumber(state.cs.length)}건`;
+}
+
 async function handleCsSubmit(event) {
   event.preventDefault();
   if (!els.csEntryForm) return;
@@ -736,9 +765,13 @@ async function handleCsSubmit(event) {
     setCsEditMode(null);
     setDefaultCsDate();
     if (registeredCustomer) {
-      state.query = registeredCustomer.toLowerCase();
-      if (els.searchInput) els.searchInput.value = registeredCustomer;
+      state.csCustomerQuery = registeredCustomer.toLowerCase();
+      if (els.csCustomerSearch) els.csCustomerSearch.value = registeredCustomer;
+      state.query = "";
+      if (els.searchInput) els.searchInput.value = "";
     } else {
+      state.csCustomerQuery = "";
+      if (els.csCustomerSearch) els.csCustomerSearch.value = "";
       state.query = "";
       if (els.searchInput) els.searchInput.value = "";
     }

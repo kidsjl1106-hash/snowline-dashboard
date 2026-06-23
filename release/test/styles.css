@@ -411,6 +411,40 @@ h2 {
   font-weight: 900;
 }
 
+.cs-search-tools {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cs-customer-search {
+  display: grid;
+  gap: 6px;
+  min-width: 190px;
+}
+
+.cs-customer-search span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cs-customer-search input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #ffffff;
+  color: var(--text);
+  outline: none;
+}
+
+.cs-customer-search input:focus {
+  border-color: var(--accent);
+}
+
 .table-sort-button {
   min-height: 28px;
   border: 0;
@@ -1041,6 +1075,11 @@ td.cs-content {
   .panel-head,
   .modal-head {
     flex-direction: column;
+  }
+
+  .cs-search-tools,
+  .cs-customer-search {
+    width: 100%;
   }
 
   .sort-control {
