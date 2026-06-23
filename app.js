@@ -2,7 +2,7 @@ const SHEETS = {
   cs: "CS DB",
   inventoryTurnover: "제품회전율",
 };
-const SHEET_FETCH_TIMEOUT_MS = 20000;
+const SHEET_FETCH_TIMEOUT_MS = 60000;
 const ANNUAL_SAFE_TURNOVER = 1;
 const TEAM_SHEETS = [
   { match: "영업1팀", name: "영업1팀", sheet: "영업1팀목표DB" },
