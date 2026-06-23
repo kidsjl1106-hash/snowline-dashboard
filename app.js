@@ -98,7 +98,10 @@ els.csEntryForm?.addEventListener("submit", handleCsSubmit);
 els.csEntryForm?.addEventListener("reset", () => {
   setCsEntryMessage("");
   setCsEditMode(null);
-  window.setTimeout(setDefaultCsDate, 0);
+  window.setTimeout(() => {
+    setDefaultCsDate();
+    setDefaultCsManager();
+  }, 0);
 });
 els.monthToggle.addEventListener("click", (event) => {
   const button = event.target.closest("[data-month]");
@@ -162,6 +165,7 @@ function startDashboard(user) {
   window.setTimeout(placeAuthUserBar, 500);
   setupAdminView(user);
   setDefaultCsDate();
+  setDefaultCsManager();
   loadDashboard();
 }
 
@@ -710,7 +714,7 @@ async function handleCsSubmit(event) {
     product: form.get("product"),
     content: form.get("content"),
     totalCost: form.get("totalCost"),
-    manager: form.get("manager"),
+    manager: getCurrentAccountName(),
   };
 
   if (!String(entry.channel || "").trim()) {
@@ -767,7 +771,7 @@ function startCsEdit(rowNumber) {
   form.product.value = row.product || "";
   form.content.value = row.content || "";
   form.totalCost.value = row.totalCost ? String(row.totalCost) : "";
-  form.manager.value = row.manager || "";
+  form.manager.value = getCurrentAccountName();
   setCsEditMode(row.rowNumber);
   setCsEntryMessage("CS 상담 내용을 수정한 뒤 CS 수정 버튼을 눌러주세요.", "ready");
   els.csEntryForm.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -789,6 +793,17 @@ function setDefaultCsDate() {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   dateInput.value = now.toISOString().slice(0, 16);
+}
+
+function setDefaultCsManager() {
+  const managerInput = els.csEntryForm?.elements?.manager;
+  if (!managerInput) return;
+  managerInput.value = getCurrentAccountName();
+}
+
+function getCurrentAccountName() {
+  const user = window.SnowlineAuth?.getSession?.()?.user;
+  return user?.displayName || user?.userId || "";
 }
 
 function normalizeCsDate(value) {

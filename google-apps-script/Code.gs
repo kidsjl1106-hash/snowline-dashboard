@@ -226,7 +226,7 @@ function buildCsRow_(entry, user, fallbackDate, currentRow) {
   if (!channel) throw new Error("채널을 입력해주세요.");
   if (!content) throw new Error("상담내용을 입력해주세요.");
 
-  const manager = cleanText_(entry.manager) || user.displayName || user.userId;
+  const manager = user.displayName || user.userId;
   const row = Array.from({ length: 16 }, (_, index) => currentRow?.[index] || "");
   row[0] = cleanText_(entry.date) || fallbackDate || Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy. M. d. a h:mm:ss");
   row[1] = channel;
