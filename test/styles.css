@@ -275,6 +275,21 @@ h2 {
   cursor: pointer;
 }
 
+.danger-button {
+  min-height: 43px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 8px;
+  padding: 0 15px;
+  background: #ffffff;
+  color: var(--danger);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.danger-button:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
 .status-strip {
   display: flex;
   align-items: center;

@@ -6,6 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <meta name="referrer" content="no-referrer" />
     <title>SNOWLINE 영업 대시보드 | GitHub Upload</title>
     <link rel="icon" href="./assets/logo.png?v=2026060701" />
     <link rel="stylesheet" href="./auth.css?v=2026062301" />
@@ -270,7 +271,7 @@
               </label>
               <label>
                 <span>고객명</span>
-                <input name="customer" type="text" autocomplete="off" />
+                <input name="customer" type="text" autocomplete="off" placeholder="필요 최소 정보만 입력" />
               </label>
               <label>
                 <span>제품구분</span>
@@ -286,7 +287,7 @@
               </label>
               <label class="wide-field">
                 <span>상담내용</span>
-                <textarea name="content" rows="3" required></textarea>
+                <textarea name="content" rows="3" autocomplete="off" placeholder="주민번호, 카드번호 등 고유식별정보 입력 금지" required></textarea>
               </label>
               <label>
                 <span>총 청구비용</span>
@@ -479,6 +480,6 @@
 
     <script src="./auth-config.js?v=2026062303"></script>
     <script src="./auth.js?v=2026062303"></script>
-    <script src="./app.js?v=2026062401"></script>
+    <script src="./app.js?v=2026062402"></script>
   </body>
 </html>

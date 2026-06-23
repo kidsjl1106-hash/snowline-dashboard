@@ -157,6 +157,12 @@ document.addEventListener("click", (event) => {
   const csEditButton = event.target.closest("[data-cs-edit]");
   if (csEditButton) {
     startCsEdit(Number(csEditButton.dataset.csEdit));
+    return;
+  }
+
+  const csDeleteButton = event.target.closest("[data-cs-delete]");
+  if (csDeleteButton) {
+    deleteCs(Number(csDeleteButton.dataset.csDelete));
   }
 });
 
@@ -707,7 +713,10 @@ function renderCs(rows) {
       <td class="cs-content">${escapeHtml(row.content)}</td>
       <td>${formatWon(row.totalCost)}</td>
       <td>${escapeHtml(row.manager)}</td>
-      <td class="table-actions"><button class="secondary-button compact-button" type="button" data-cs-edit="${row.rowNumber}">수정</button></td>
+      <td class="table-actions">
+        <button class="secondary-button compact-button" type="button" data-cs-edit="${row.rowNumber}">수정</button>
+        <button class="danger-button compact-button" type="button" data-cs-delete="${row.rowNumber}">삭제</button>
+      </td>
     </tr>`)
     .join("");
 }
@@ -725,6 +734,32 @@ function renderCsSearchSummary(rows) {
     return;
   }
   els.csSearchSummary.textContent = `전체 상담내역 ${formatNumber(state.cs.length)}건`;
+}
+
+async function deleteCs(rowNumber) {
+  const row = state.cs.find((item) => item.rowNumber === rowNumber);
+  if (!row) {
+    setCsEntryMessage("삭제할 CS 상담을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.", "error");
+    return;
+  }
+
+  const subject = row.customer || row.product || row.content || "선택한 상담";
+  if (!window.confirm(`"${subject}" 상담내역을 삭제할까요? 삭제 후에는 화면에서 복구할 수 없습니다.`)) return;
+
+  setCsEntryMessage("CS 상담을 삭제하는 중입니다.");
+  try {
+    await window.SnowlineAuth.request({ action: "deleteCs", rowNumber });
+    if (els.csEntryForm?.elements?.rowNumber?.value === String(rowNumber)) {
+      els.csEntryForm.reset();
+      setCsEditMode(null);
+      setDefaultCsDate();
+      setDefaultCsManager();
+    }
+    await loadDashboard();
+    setCsEntryMessage("CS 상담이 삭제되었습니다.", "ready");
+  } catch (error) {
+    setCsEntryMessage(error.message || "CS 상담을 삭제하지 못했습니다.", "error");
+  }
 }
 
 async function handleCsSubmit(event) {

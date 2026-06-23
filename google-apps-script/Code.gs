@@ -61,6 +61,7 @@ function doPost(e) {
     if (action === "sheet") return json_(sheet_(payload));
     if (action === "addCs") return json_(addCs_(payload));
     if (action === "updateCs") return json_(updateCs_(payload));
+    if (action === "deleteCs") return json_(deleteCs_(payload));
     if (action === "listPending") return json_(listPending_(payload));
     if (action === "listUsers") return json_(listUsers_(payload));
     if (action === "setUserStatus") return json_(setUserStatus_(payload));
@@ -211,6 +212,31 @@ function updateCs_(payload) {
   sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
   audit_("cs_update", user.userId, `${rowNumber} / ${row[1]} / ${row[5] || row[2] || "no_subject"}`);
   return { ok: true, rowNumber };
+}
+
+function deleteCs_(payload) {
+  const user = requireUser_(payload.token);
+  const rowNumber = Number(payload.rowNumber || 0);
+
+  if (!rowNumber || rowNumber < 4) throw new Error("삭제할 CS 상담을 찾을 수 없습니다.");
+
+  const sheet = csSheet_();
+  const lastRow = sheet.getLastRow();
+  if (rowNumber > lastRow) throw new Error("삭제할 CS 상담을 찾을 수 없습니다.");
+
+  const currentRow = sheet.getRange(rowNumber, 1, 1, Math.max(sheet.getLastColumn(), 16)).getDisplayValues()[0];
+  assertCanDeleteCs_(user, currentRow);
+  sheet.deleteRow(rowNumber);
+  audit_("cs_delete", user.userId, `${rowNumber} / ${cleanText_(currentRow[1])} / ${cleanText_(currentRow[5]) || cleanText_(currentRow[2]) || "no_subject"}`);
+  return { ok: true, rowNumber };
+}
+
+function assertCanDeleteCs_(user, row) {
+  if (user.role === "admin" || user.userId === CONFIG.adminUserId) return;
+  const manager = cleanText_(row[15]);
+  const userNames = [user.userId, user.displayName].map((value) => cleanText_(value)).filter(Boolean);
+  if (manager && userNames.includes(manager)) return;
+  throw new Error("본인이 등록한 상담 또는 관리자만 삭제할 수 있습니다.");
 }
 
 function csSheet_() {
