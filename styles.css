@@ -147,6 +147,16 @@ textarea {
   margin-bottom: 5px;
 }
 
+#auth-user-bar.auth-user-bar {
+  position: static !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  width: 100%;
+  box-shadow: none !important;
+}
+
 .workspace {
   min-width: 0;
   padding: 28px;

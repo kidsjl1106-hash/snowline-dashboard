@@ -158,9 +158,18 @@ if (window.SnowlineAuth?.required) {
 function startDashboard(user) {
   if (dashboardStarted) return;
   dashboardStarted = true;
+  placeAuthUserBar();
+  window.setTimeout(placeAuthUserBar, 500);
   setupAdminView(user);
   setDefaultCsDate();
   loadDashboard();
+}
+
+function placeAuthUserBar() {
+  const bar = document.querySelector("#auth-user-bar");
+  const sidebar = document.querySelector(".sidebar");
+  if (!bar || !sidebar || bar.parentElement === sidebar) return;
+  sidebar.appendChild(bar);
 }
 
 function initBuildInfo() {
