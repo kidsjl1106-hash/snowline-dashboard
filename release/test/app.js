@@ -528,9 +528,8 @@ function isSnowlineProductCode(code) {
 
 function parseCs(rows) {
   return rows
-    .slice(1)
     .map((row, index) => ({
-      rowNumber: index + 2,
+      rowNumber: index + 1,
       date: row[0],
       channel: row[1],
       customer: row[2],
@@ -538,10 +537,10 @@ function parseCs(rows) {
       code: row[4],
       product: row[5],
       content: row[8],
-      totalCost: toNumber(row[13]),
-      manager: row[14],
+      totalCost: toNumber(row[14]),
+      manager: row[15],
     }))
-    .filter((row) => row.date || row.product || row.content);
+    .filter((row) => row.rowNumber >= 4 && (row.date || row.product || row.content));
 }
 
 function render() {

@@ -206,8 +206,8 @@ function updateCs_(payload) {
   const lastRow = sheet.getLastRow();
   if (rowNumber > lastRow) throw new Error("수정할 CS 상담을 찾을 수 없습니다.");
 
-  const currentRow = sheet.getRange(rowNumber, 1, 1, 15).getDisplayValues()[0];
-  const row = buildCsRow_(entry, user, currentRow[0]);
+  const currentRow = sheet.getRange(rowNumber, 1, 1, Math.max(sheet.getLastColumn(), 16)).getDisplayValues()[0];
+  const row = buildCsRow_(entry, user, currentRow[0], currentRow);
   sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
   audit_("cs_update", user.userId, `${rowNumber} / ${row[1]} / ${row[5] || row[2] || "no_subject"}`);
   return { ok: true, rowNumber };
@@ -219,7 +219,7 @@ function csSheet_() {
   return sheet;
 }
 
-function buildCsRow_(entry, user, fallbackDate) {
+function buildCsRow_(entry, user, fallbackDate, currentRow) {
   const channel = cleanText_(entry.channel);
   const content = cleanText_(entry.content);
 
@@ -227,23 +227,17 @@ function buildCsRow_(entry, user, fallbackDate) {
   if (!content) throw new Error("상담내용을 입력해주세요.");
 
   const manager = cleanText_(entry.manager) || user.displayName || user.userId;
-  return [
-    cleanText_(entry.date) || fallbackDate || Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy. M. d. a h:mm:ss"),
-    channel,
-    cleanText_(entry.customer),
-    cleanText_(entry.category),
-    cleanText_(entry.code),
-    cleanText_(entry.product),
-    "",
-    "",
-    content,
-    "",
-    "",
-    "",
-    "",
-    parseNumber_(entry.totalCost),
-    manager,
-  ];
+  const row = Array.from({ length: 16 }, (_, index) => currentRow?.[index] || "");
+  row[0] = cleanText_(entry.date) || fallbackDate || Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy. M. d. a h:mm:ss");
+  row[1] = channel;
+  row[2] = cleanText_(entry.customer);
+  row[3] = cleanText_(entry.category);
+  row[4] = cleanText_(entry.code);
+  row[5] = cleanText_(entry.product);
+  row[8] = content;
+  row[14] = parseNumber_(entry.totalCost);
+  row[15] = manager;
+  return row;
 }
 
 function listPending_(payload) {
