@@ -361,7 +361,7 @@ function verifyToken_(token) {
   const parts = String(token || "").split(".");
   if (parts.length !== 2 || sign_(parts[0]) !== parts[1]) throw new Error("세션이 올바르지 않습니다.");
 
-  const payload = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString());
+  const payload = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString("UTF-8"));
   if (!payload.exp || Date.now() > payload.exp) throw new Error("세션이 만료되었습니다.");
   return payload;
 }
@@ -435,7 +435,7 @@ function randomSecret_() {
 }
 
 function base64Url_(value) {
-  return Utilities.base64EncodeWebSafe(value).replace(/=+$/, "");
+  return Utilities.base64EncodeWebSafe(Utilities.newBlob(value, "application/json").getBytes()).replace(/=+$/, "");
 }
 
 function bytesToHex_(bytes) {
