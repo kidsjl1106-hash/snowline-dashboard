@@ -9,6 +9,7 @@ const INVENTORY_COLUMNS = {
   periodStock: 43,
   periodCostAmount: 46,
 };
+const SALES_MONTH_COLUMNS = [2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14];
 const TEAM_SHEETS = [
   { match: "영업1팀", name: "영업1팀", sheet: "영업1팀목표DB" },
   { match: "영업2팀", name: "영업2팀", sheet: "영업2팀목표DB" },
@@ -440,8 +441,7 @@ function parseInventory(products = []) {
 
 function parseTeamDetail(rows) {
   const annualColumn = 16;
-  const months = Array.from({ length: 12 }, (_, index) => {
-    const column = index + 2;
+  const months = SALES_MONTH_COLUMNS.map((column, index) => {
     const target = toNumber(rows[2]?.[column]);
     const actual = toNumber(rows[3]?.[column]);
     return {

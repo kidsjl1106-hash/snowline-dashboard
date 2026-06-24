@@ -49,6 +49,7 @@ const INVENTORY_COLUMNS = {
   periodStock: 43,
   periodCostAmount: 46,
 };
+const SALES_MONTH_COLUMNS = [2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14];
 
 function initializeAuth() {
   const props = PropertiesService.getScriptProperties();
@@ -206,7 +207,7 @@ function buildSpreadsheetAccessMessage_(error) {
 
 function salesSummary_(payload) {
   requireUser_(payload.token);
-  const cached = getCacheJson_("salesSummary:v1");
+  const cached = getCacheJson_("salesSummary:v2");
   if (cached) return cached;
 
   const spreadsheet = SpreadsheetApp.openById(CONFIG.spreadsheetId);
@@ -235,7 +236,7 @@ function salesSummary_(payload) {
   });
 
   const result = { ok: true, teams, errors };
-  setCacheJson_("salesSummary:v1", result, 60);
+  setCacheJson_("salesSummary:v2", result, 60);
   return result;
 }
 
@@ -259,8 +260,7 @@ function normalizeSheetName_(value) {
 function buildSalesSummary_(rows) {
   const targetRow = rows[0] || [];
   const actualRow = rows[1] || [];
-  const months = Array.from({ length: 12 }, (_, index) => {
-    const column = index + 2;
+  const months = SALES_MONTH_COLUMNS.map((column, index) => {
     const target = parseNumber_(targetRow[column]);
     const actual = parseNumber_(actualRow[column]);
     return {
