@@ -161,10 +161,10 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Ranking</p>
-                  <h2>기간재고 금액 상위 제품</h2>
+                  <h2>기간재고 원가금액 상위 제품</h2>
               </div>
               <div class="sort-control" aria-label="제품 정렬">
-                <button class="active" type="button" data-product-sort="amount-desc">재고금액순</button>
+                <button class="active" type="button" data-product-sort="amount-desc">재고금액(원가)순</button>
                 <button type="button" data-product-sort="turnover-desc">회전율 높은순</button>
                 <button type="button" data-product-sort="turnover-asc">회전율 낮은순</button>
               </div>
@@ -178,7 +178,7 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액</th>
+                    <th>재고금액(원가)</th>
                   </tr>
                 </thead>
                 <tbody id="top-products-body"></tbody>
@@ -217,10 +217,10 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Products</p>
-                <h2>기간재고 기준 현 재고금액 랭킹</h2>
+                <h2>기간재고 기준 현 재고금액(원가) 랭킹</h2>
               </div>
               <div class="sort-control" aria-label="제품 정렬">
-                <button class="active" type="button" data-product-sort="amount-desc">재고금액순</button>
+                <button class="active" type="button" data-product-sort="amount-desc">재고금액(원가)순</button>
                 <button type="button" data-product-sort="turnover-desc">회전율 높은순</button>
                 <button type="button" data-product-sort="turnover-asc">회전율 낮은순</button>
               </div>
@@ -234,7 +234,7 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액</th>
+                    <th>재고금액(원가)</th>
                   </tr>
                 </thead>
                 <tbody id="products-body"></tbody>
@@ -342,7 +342,7 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액</th>
+                    <th>재고금액(원가)</th>
                     <th>조치</th>
                   </tr>
                 </thead>
@@ -453,7 +453,7 @@
             <p id="inventory-modal-subtitle">제품 단가순으로 정렬됩니다.</p>
           </div>
           <div class="sort-control modal-sort" aria-label="재고 상세 정렬">
-            <button class="active" type="button" data-modal-sort="amount-desc">재고금액순</button>
+            <button class="active" type="button" data-modal-sort="amount-desc">재고금액(원가)순</button>
             <button type="button" data-modal-sort="turnover-desc">회전율 높은순</button>
             <button type="button" data-modal-sort="turnover-asc">회전율 낮은순</button>
           </div>
@@ -469,7 +469,7 @@
                 <th>회전율</th>
                 <th>현재고</th>
                 <th>판매가</th>
-                <th>재고금액</th>
+                <th>재고금액(원가)</th>
               </tr>
             </thead>
             <tbody id="inventory-modal-body"></tbody>
@@ -480,6 +480,6 @@
 
     <script src="./auth-config.js?v=2026062303"></script>
     <script src="./auth.js?v=2026062303"></script>
-    <script src="./app.js?v=2026062404"></script>
+    <script src="./app.js?v=2026062405"></script>
   </body>
 </html>

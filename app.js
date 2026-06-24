@@ -7,7 +7,7 @@ const ANNUAL_SAFE_TURNOVER = 1;
 const INVENTORY_COLUMNS = {
   salesQuantity: 31,
   periodStock: 43,
-  periodAmount: 45,
+  periodCostAmount: 46,
 };
 const TEAM_SHEETS = [
   { match: "영업1팀", name: "영업1팀", sheet: "영업1팀목표DB" },
@@ -596,7 +596,7 @@ function parseInventoryProducts(rows) {
     .map((row) => {
       const salesQuantity = toNumber(row[INVENTORY_COLUMNS.salesQuantity]);
       const stock = toNumber(row[INVENTORY_COLUMNS.periodStock]);
-      const amount = toNumber(row[INVENTORY_COLUMNS.periodAmount]);
+      const amount = toNumber(row[INVENTORY_COLUMNS.periodCostAmount]);
       const turnover = stock ? salesQuantity / stock : 0;
       const code = String(row[5] || "").trim();
       return {
@@ -1077,7 +1077,7 @@ function buildActionItems(teams, cs) {
     actions.push({
       type: "재고",
       item: product.name,
-      basis: `${product.status} · 재고금액 ${formatWon(product.amount)}`,
+      basis: `${product.status} · 재고금액(원가) ${formatWon(product.amount)}`,
       priority: product.status === "위험" || product.status === "처분" ? "높음" : "보통",
       status: "검토",
     });
@@ -1316,8 +1316,8 @@ function openInventoryModal(statusLabel) {
   els.inventoryModalTitle.textContent = `${statusLabel} 제품 리스트`;
   els.inventoryModalSubtitle.textContent =
     statusKey === "all"
-      ? `제품회전율 시트의 기간재고 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`
-      : `제품회전율 시트의 기간재고 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`;
+      ? `제품회전율 시트의 기간재고 원가 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`
+      : `제품회전율 시트의 기간재고 원가 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`;
 
   if (!products.length) {
     renderTableEmpty(els.inventoryModalBody, 7, "제품회전율 시트 기준 해당 상태 제품이 없습니다.");
@@ -1380,7 +1380,7 @@ function compareInventoryProducts(a, b, sortKey) {
 function getSortLabel(sortKey) {
   if (sortKey === "turnover-asc") return "회전율 낮은순";
   if (sortKey === "turnover-desc") return "회전율 높은순";
-  return "재고금액순";
+  return "재고금액(원가)순";
 }
 
 function syncSortButtons(selector, activeValue) {
