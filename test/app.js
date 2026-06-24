@@ -4,12 +4,18 @@ const SHEETS = {
 };
 const SHEET_FETCH_TIMEOUT_MS = 60000;
 const ANNUAL_SAFE_TURNOVER = 1;
+const INVENTORY_COLUMNS = {
+  salesQuantity: 31,
+  periodStock: 43,
+  periodAmount: 45,
+};
 const TEAM_SHEETS = [
   { match: "영업1팀", name: "영업1팀", sheet: "영업1팀목표DB" },
   { match: "영업2팀", name: "영업2팀", sheet: "영업2팀목표DB" },
   { match: "영업3팀", name: "영업3팀", sheet: "영업3팀목표DB" },
   { match: "영업4팀", name: "영업4팀", sheet: "영업4팀목표DB" },
   { match: "해외영업팀", name: "해외영업팀", sheet: "해외영업팀목표DB" },
+  { match: "직영점", name: "직영점", sheets: ["직영점매출목표DB", "직영점DB", "직영점 DB"] },
 ];
 const HTML_ENTITIES = {
   "&": "&amp;",
@@ -289,7 +295,7 @@ async function fetchDashboardSheets() {
   }
 
   try {
-    const sheetNames = [SHEETS.cs, SHEETS.inventoryTurnover, ...TEAM_SHEETS.map((team) => team.sheet)];
+    const sheetNames = [SHEETS.cs, SHEETS.inventoryTurnover];
     const result = await withTimeout(
       window.SnowlineAuth.request({ action: "dashboard", sheetNames }),
       SHEET_FETCH_TIMEOUT_MS,
@@ -307,6 +313,14 @@ function getDashboardSheetResult(dashboardSheets, sheetName) {
   const sheet = dashboardSheets[sheetName];
   if (sheet?.csv) return { status: "fulfilled", value: parseCsv(sheet.csv) };
   return { status: "rejected", reason: new Error(sheet?.error || `${sheetName} 데이터를 불러오지 못했습니다.`) };
+}
+
+function getTeamSheetNames() {
+  return [...new Set(TEAM_SHEETS.flatMap((team) => getTeamSheetCandidates(team)))];
+}
+
+function getTeamSheetCandidates(team) {
+  return team.sheets || [team.sheet];
 }
 
 async function settle(task) {
@@ -395,8 +409,8 @@ function parseInventory(products = []) {
   return [
     { label: "안전", value: counts["안전"] || 0 },
     { label: "관심", value: counts["관심"] || 0 },
-    { label: "처분", value: counts["처분"] || 0 },
     { label: "위험", value: counts["위험"] || 0 },
+    { label: "처분", value: counts["처분"] || 0 },
     { label: "총재고품목수", value: counts["총재고품목수"] || 0 },
   ];
 }
@@ -426,25 +440,30 @@ function parseTeamDetail(rows) {
 }
 
 async function fetchTeamDetails(dashboardSheets) {
+  const summary = await fetchSalesSummary();
+  if (summary) return summary;
+
   const results = dashboardSheets
     ? TEAM_SHEETS.map((team) => {
-        const sheet = dashboardSheets[team.sheet];
-        if (sheet?.csv) {
-          return { status: "fulfilled", value: { rows: parseCsv(sheet.csv), updatedAt: new Date().toISOString() } };
+        const sheetName = getTeamSheetCandidates(team).find((candidate) => dashboardSheets[candidate]?.csv);
+        if (sheetName) {
+          return { status: "fulfilled", value: { rows: parseCsv(dashboardSheets[sheetName].csv), sheetName, updatedAt: new Date().toISOString() } };
         }
-        return { status: "rejected", reason: new Error(sheet?.error || `${team.sheet} 데이터를 불러오지 못했습니다.`) };
+        const errors = getTeamSheetCandidates(team)
+          .map((candidate) => dashboardSheets[candidate]?.error)
+          .filter(Boolean)
+          .join(" / ");
+        return { status: "rejected", reason: new Error(errors || `${team.name} 데이터를 불러오지 못했습니다.`) };
       })
     : await Promise.allSettled(
-        TEAM_SHEETS.map(async (team) => ({
-          rows: await fetchSheet(team.sheet),
-          updatedAt: new Date().toISOString(),
-        })),
+        TEAM_SHEETS.map((team) => fetchFirstTeamSheet(team)),
       );
   const errors = [];
   const details = TEAM_SHEETS.reduce((details, team, index) => {
     if (results[index].status === "fulfilled") {
       details[team.match] = {
         name: team.name,
+        sheetName: results[index].value.sheetName,
         updatedAt: results[index].value.updatedAt,
         ...parseTeamDetail(results[index].value.rows),
       };
@@ -455,6 +474,51 @@ async function fetchTeamDetails(dashboardSheets) {
   }, {});
   Object.defineProperty(details, "_errors", { value: errors, enumerable: false });
   return details;
+}
+
+async function fetchSalesSummary() {
+  if (!window.SnowlineAuth?.request) return null;
+  try {
+    const result = await withTimeout(
+      window.SnowlineAuth.request({ action: "salesSummary" }),
+      SHEET_FETCH_TIMEOUT_MS,
+      "매출 요약 조회 응답이 지연되고 있습니다.",
+    );
+    const details = (result.teams || []).reduce((acc, team) => {
+      acc[team.match] = {
+        name: team.name,
+        sheetName: team.sheetName,
+        months: team.months || [],
+        annualTarget: toNumber(team.annualTarget),
+        annualActual: toNumber(team.annualActual),
+        annualRate: toNumber(team.annualRate),
+        updatedAt: team.updatedAt,
+      };
+      return acc;
+    }, {});
+    Object.defineProperty(details, "_errors", { value: result.errors || [], enumerable: false });
+    return details;
+  } catch (error) {
+    console.warn("Sales summary load failed, falling back to sheet reads.", error);
+    return null;
+  }
+}
+
+async function fetchFirstTeamSheet(team) {
+  const candidates = getTeamSheetCandidates(team);
+  const errors = [];
+  for (const sheetName of candidates) {
+    try {
+      return {
+        rows: await fetchSheet(sheetName),
+        sheetName,
+        updatedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      errors.push(`${sheetName}: ${formatLoadError(error)}`);
+    }
+  }
+  throw new Error(errors.join(" / ") || `${team.name} 데이터를 불러오지 못했습니다.`);
 }
 
 function buildTeamsFromDetails(teamDetails = {}) {
@@ -528,21 +592,24 @@ function parseInventoryRanking(products) {
 
 function parseInventoryProducts(rows) {
   return rows
-    .slice(1)
+    .slice(2)
     .map((row) => {
-      const turnover = toNumber(row[38]);
+      const salesQuantity = toNumber(row[INVENTORY_COLUMNS.salesQuantity]);
+      const stock = toNumber(row[INVENTORY_COLUMNS.periodStock]);
+      const amount = toNumber(row[INVENTORY_COLUMNS.periodAmount]);
+      const turnover = stock ? salesQuantity / stock : 0;
       const code = String(row[5] || "").trim();
       return {
         code,
         name: row[6],
         salePrice: toNumber(row[8]),
-        stock: toNumber(row[34]),
-        amount: toNumber(row[36]),
+        stock,
+        amount,
         status: getTurnoverStatus(turnover),
         turnover,
       };
     })
-    .filter((row) => isSnowlineProductCode(row.code) && row.name && isInventoryStatus(row.status));
+    .filter((row) => isSnowlineProductCode(row.code) && row.name && row.stock > 0 && isInventoryStatus(row.status));
 }
 
 function isSnowlineProductCode(code) {
@@ -1068,7 +1135,7 @@ function getInventoryRiskProducts() {
   return state.inventoryProducts
     .filter((product) => ["위험", "처분", "관심"].includes(product.status))
     .sort((a, b) => {
-      const priority = { 위험: 0, 처분: 1, 관심: 2 };
+      const priority = { 처분: 0, 위험: 1, 관심: 2 };
       return priority[a.status] - priority[b.status] || b.amount - a.amount;
     });
 }
@@ -1238,8 +1305,8 @@ function openInventoryModal(statusLabel) {
   els.inventoryModalTitle.textContent = `${statusLabel} 제품 리스트`;
   els.inventoryModalSubtitle.textContent =
     statusKey === "all"
-      ? `제품회전율 시트 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`
-      : `제품회전율 시트 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`;
+      ? `제품회전율 시트의 기간재고 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`
+      : `제품회전율 시트의 기간재고 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`;
 
   if (!products.length) {
     renderTableEmpty(els.inventoryModalBody, 7, "제품회전율 시트 기준 해당 상태 제품이 없습니다.");
@@ -1280,7 +1347,8 @@ function isInventoryStatus(status) {
 }
 
 function getTurnoverStatus(turnover) {
-  if (turnover < ANNUAL_SAFE_TURNOVER * 0.8) return "처분";
+  if (turnover < 0.8) return "처분";
+  if (turnover < 0.9) return "위험";
   if (turnover < ANNUAL_SAFE_TURNOVER) return "관심";
   return "안전";
 }

@@ -14,6 +14,9 @@ const CONFIG = {
     "영업3팀목표DB",
     "영업4팀목표DB",
     "해외영업팀목표DB",
+    "직영점매출목표DB",
+    "직영점DB",
+    "직영점 DB",
   ],
 };
 
@@ -32,6 +35,14 @@ const USER_COLUMNS = [
   "approvedAt",
   "approvedBy",
   "lastLoginAt",
+];
+const SALES_SHEETS = [
+  { match: "영업1팀", name: "영업1팀", sheets: ["영업1팀목표DB"] },
+  { match: "영업2팀", name: "영업2팀", sheets: ["영업2팀목표DB"] },
+  { match: "영업3팀", name: "영업3팀", sheets: ["영업3팀목표DB"] },
+  { match: "영업4팀", name: "영업4팀", sheets: ["영업4팀목표DB"] },
+  { match: "해외영업팀", name: "해외영업팀", sheets: ["해외영업팀목표DB"] },
+  { match: "직영점", name: "직영점", sheets: ["직영점매출목표DB", "직영점DB", "직영점 DB"], fallbackKeyword: "직영" },
 ];
 
 function initializeAuth() {
@@ -59,6 +70,7 @@ function doPost(e) {
     if (action === "me") return json_(me_(payload));
     if (action === "dashboard") return json_(dashboard_(payload));
     if (action === "sheet") return json_(sheet_(payload));
+    if (action === "salesSummary") return json_(salesSummary_(payload));
     if (action === "addCs") return json_(addCs_(payload));
     if (action === "updateCs") return json_(updateCs_(payload));
     if (action === "deleteCs") return json_(deleteCs_(payload));
@@ -183,6 +195,77 @@ function buildSpreadsheetAccessMessage_(error) {
     return "구글시트 조회 권한은 사용자별 공유가 아니라 Apps Script 소유자 권한으로 처리되어야 합니다. Apps Script 배포 설정에서 '실행 사용자: 나', '액세스 권한: 모든 사용자'로 새 버전을 배포해주세요.";
   }
   return message || "구글시트 데이터를 읽지 못했습니다.";
+}
+
+function salesSummary_(payload) {
+  requireUser_(payload.token);
+  const spreadsheet = SpreadsheetApp.openById(CONFIG.spreadsheetId);
+  const teams = [];
+  const errors = [];
+
+  SALES_SHEETS.forEach((config) => {
+    const found = findSalesSheet_(spreadsheet, config.sheets, config.fallbackKeyword);
+    if (!found.sheet) {
+      errors.push(`${config.name}: 시트를 찾을 수 없습니다.`);
+      return;
+    }
+
+    try {
+      const values = found.sheet.getRange(3, 1, 2, 17).getDisplayValues();
+      teams.push({
+        match: config.match,
+        name: config.name,
+        sheetName: found.sheetName,
+        updatedAt: new Date().toISOString(),
+        ...buildSalesSummary_(values),
+      });
+    } catch (error) {
+      errors.push(`${config.name}: ${error.message || "매출 요약을 읽지 못했습니다."}`);
+    }
+  });
+
+  return { ok: true, teams, errors };
+}
+
+function findSalesSheet_(spreadsheet, names, fallbackKeyword) {
+  for (const sheetName of names) {
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    if (sheet) return { sheet, sheetName };
+  }
+  if (fallbackKeyword) {
+    const keyword = normalizeSheetName_(fallbackKeyword);
+    const matched = spreadsheet.getSheets().find((sheet) => normalizeSheetName_(sheet.getName()).includes(keyword));
+    if (matched) return { sheet: matched, sheetName: matched.getName() };
+  }
+  return { sheet: null, sheetName: "" };
+}
+
+function normalizeSheetName_(value) {
+  return String(value || "").replace(/\s+/g, "").toLowerCase();
+}
+
+function buildSalesSummary_(rows) {
+  const targetRow = rows[0] || [];
+  const actualRow = rows[1] || [];
+  const months = Array.from({ length: 12 }, (_, index) => {
+    const column = index + 2;
+    const target = parseNumber_(targetRow[column]);
+    const actual = parseNumber_(actualRow[column]);
+    return {
+      month: index + 1,
+      target,
+      actual,
+      rate: target ? actual / target : 0,
+    };
+  });
+  const annualTarget = parseNumber_(targetRow[16]);
+  const annualActual = parseNumber_(actualRow[16]);
+  return {
+    months,
+    annualTarget,
+    annualActual,
+    annualRate: annualTarget ? annualActual / annualTarget : 0,
+  };
 }
 
 function addCs_(payload) {
