@@ -6,10 +6,11 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <meta name="referrer" content="no-referrer" />
     <title>SNOWLINE 영업 대시보드 | GitHub Upload</title>
     <link rel="icon" href="./assets/logo.png?v=2026060701" />
-    <link rel="stylesheet" href="./auth.css?v=2026060701" />
-    <link rel="stylesheet" href="./styles.css?v=2026061203" />
+    <link rel="stylesheet" href="./auth.css?v=2026062301" />
+    <link rel="stylesheet" href="./styles.css?v=2026062409" />
   </head>
   <body class="auth-locked">
     <div class="app-shell">
@@ -37,7 +38,7 @@
           </button>
           <button class="nav-tab" data-view="price" type="button">
             <span>Price</span>
-            <small>가격 모니터링</small>
+            <small>최저가 감시</small>
           </button>
           <button class="nav-tab" data-view="inventory-risk" type="button">
             <span>Inventory</span>
@@ -45,7 +46,7 @@
           </button>
           <button class="nav-tab" data-view="cs" type="button">
             <span>CS</span>
-            <small>품질 이슈</small>
+            <small>고객상담</small>
           </button>
           <button class="nav-tab" data-view="actions" type="button">
             <span>Actions</span>
@@ -164,10 +165,10 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Ranking</p>
-                <h2>재고금액 상위 제품</h2>
+                  <h2>기간재고 원가금액 상위 제품</h2>
               </div>
               <div class="sort-control" aria-label="제품 정렬">
-                <button class="active" type="button" data-product-sort="amount-desc">재고금액순</button>
+                <button class="active" type="button" data-product-sort="amount-desc">재고금액(원가)순</button>
                 <button type="button" data-product-sort="turnover-desc">회전율 높은순</button>
                 <button type="button" data-product-sort="turnover-asc">회전율 낮은순</button>
               </div>
@@ -181,7 +182,7 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액</th>
+                    <th>재고금액(원가)</th>
                   </tr>
                 </thead>
                 <tbody id="top-products-body"></tbody>
@@ -220,10 +221,10 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Products</p>
-                <h2>제품별 재고금액 랭킹</h2>
+                <h2>기간재고 기준 현 재고금액(원가) 랭킹</h2>
               </div>
               <div class="sort-control" aria-label="제품 정렬">
-                <button class="active" type="button" data-product-sort="amount-desc">재고금액순</button>
+                <button class="active" type="button" data-product-sort="amount-desc">재고금액(원가)순</button>
                 <button type="button" data-product-sort="turnover-desc">회전율 높은순</button>
                 <button type="button" data-product-sort="turnover-asc">회전율 낮은순</button>
               </div>
@@ -237,7 +238,7 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액</th>
+                    <th>재고금액(원가)</th>
                   </tr>
                 </thead>
                 <tbody id="products-body"></tbody>
@@ -253,7 +254,59 @@
                 <p class="eyebrow">Customer Service</p>
                 <h2>CS 상담 현황</h2>
               </div>
+              <div class="cs-search-tools">
+                <label class="cs-customer-search">
+                  <span>고객명 조회</span>
+                  <input id="cs-customer-search" type="search" placeholder="고객명 입력" autocomplete="off" />
+                </label>
+                <button class="secondary-button compact-button" id="cs-customer-clear" type="button">초기화</button>
+                <span class="panel-summary" id="cs-search-summary">전체 상담내역</span>
+              </div>
             </div>
+            <form class="cs-entry-form" id="cs-entry-form">
+              <input name="rowNumber" type="hidden" />
+              <label>
+                <span>상담일시</span>
+                <input name="date" type="datetime-local" />
+              </label>
+              <label>
+                <span>채널</span>
+                <input name="channel" type="text" placeholder="전화, 카카오, 네이버" required />
+              </label>
+              <label>
+                <span>고객명</span>
+                <input name="customer" type="text" autocomplete="off" placeholder="필요 최소 정보만 입력" />
+              </label>
+              <label>
+                <span>제품구분</span>
+                <input name="category" type="text" autocomplete="off" />
+              </label>
+              <label>
+                <span>제품코드</span>
+                <input name="code" type="text" autocomplete="off" placeholder="SN..." />
+              </label>
+              <label>
+                <span>제품명</span>
+                <input name="product" type="text" autocomplete="off" />
+              </label>
+              <label class="wide-field">
+                <span>상담내용</span>
+                <textarea name="content" rows="3" autocomplete="off" placeholder="주민번호, 카드번호 등 고유식별정보 입력 금지" required></textarea>
+              </label>
+              <label>
+                <span>총 청구비용</span>
+                <input name="totalCost" type="text" inputmode="numeric" placeholder="0" />
+              </label>
+              <label>
+                <span>상담자</span>
+                <input name="manager" type="text" autocomplete="off" readonly title="로그인 계정명으로 자동 저장됩니다." />
+              </label>
+              <div class="cs-entry-actions">
+                <button class="refresh-button" id="cs-submit-button" type="submit">CS 등록</button>
+                <button class="secondary-button" type="reset">초기화</button>
+                <span id="cs-entry-message" class="form-status"></span>
+              </div>
+            </form>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -266,6 +319,7 @@
                     <th>상담내용</th>
                     <th>총 청구비용</th>
                     <th>상담자</th>
+                    <th>관리</th>
                   </tr>
                 </thead>
                 <tbody id="cs-body"></tbody>
@@ -458,7 +512,7 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액</th>
+                    <th>재고금액(원가)</th>
                     <th>조치</th>
                   </tr>
                 </thead>
@@ -561,7 +615,7 @@
             <p id="inventory-modal-subtitle">제품 단가순으로 정렬됩니다.</p>
           </div>
           <div class="sort-control modal-sort" aria-label="재고 상세 정렬">
-            <button class="active" type="button" data-modal-sort="amount-desc">재고금액순</button>
+            <button class="active" type="button" data-modal-sort="amount-desc">재고금액(원가)순</button>
             <button type="button" data-modal-sort="turnover-desc">회전율 높은순</button>
             <button type="button" data-modal-sort="turnover-asc">회전율 낮은순</button>
           </div>
@@ -577,7 +631,7 @@
                 <th>회전율</th>
                 <th>현재고</th>
                 <th>판매가</th>
-                <th>재고금액</th>
+                <th>재고금액(원가)</th>
               </tr>
             </thead>
             <tbody id="inventory-modal-body"></tbody>
@@ -586,8 +640,8 @@
       </section>
     </div>
 
-    <script src="./auth-config.js?v=2026060802"></script>
-    <script src="./auth.js?v=2026060804"></script>
-    <script src="./app.js?v=2026062402"></script>
+    <script src="./auth-config.js?v=2026062408"></script>
+    <script src="./auth.js?v=2026062408"></script>
+    <script src="./app.js?v=2026062409"></script>
   </body>
 </html>

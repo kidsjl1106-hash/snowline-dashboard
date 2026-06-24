@@ -31,7 +31,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -45,6 +46,8 @@ input {
 .sidebar {
   position: sticky;
   top: 0;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   min-width: 0;
   padding: 24px 18px;
@@ -131,7 +134,7 @@ input {
 .sheet-note {
   position: sticky;
   bottom: 18px;
-  margin-top: 18px;
+  margin-top: auto;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -142,6 +145,16 @@ input {
   color: var(--muted);
   font-size: 12px;
   margin-bottom: 5px;
+}
+
+#auth-user-bar.auth-user-bar {
+  position: static !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  width: 100%;
+  box-shadow: none !important;
 }
 
 .workspace {
@@ -249,6 +262,32 @@ h2 {
   color: #ffffff;
   font-weight: 900;
   cursor: pointer;
+}
+
+.secondary-button {
+  min-height: 43px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 15px;
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.danger-button {
+  min-height: 43px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 8px;
+  padding: 0 15px;
+  background: #ffffff;
+  color: var(--danger);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.danger-button:hover {
+  background: rgba(220, 38, 38, 0.08);
 }
 
 .status-strip {
@@ -385,6 +424,40 @@ h2 {
   color: var(--accent-2);
   font-size: 12px;
   font-weight: 900;
+}
+
+.cs-search-tools {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cs-customer-search {
+  display: grid;
+  gap: 6px;
+  min-width: 190px;
+}
+
+.cs-customer-search span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cs-customer-search input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #ffffff;
+  color: var(--text);
+  outline: none;
+}
+
+.cs-customer-search input:focus {
+  border-color: var(--accent);
 }
 
 .table-sort-button {
@@ -643,6 +716,73 @@ h2 {
   font-weight: 800;
 }
 
+.cs-entry-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 18px 18px;
+}
+
+.cs-entry-form label {
+  min-width: 0;
+}
+
+.cs-entry-form span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cs-entry-form input,
+.cs-entry-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 11px;
+  background: #ffffff;
+  color: var(--text);
+  outline: none;
+}
+
+.cs-entry-form input:focus,
+.cs-entry-form textarea:focus {
+  border-color: var(--accent);
+}
+
+.cs-entry-form textarea {
+  resize: vertical;
+}
+
+.cs-entry-form .wide-field {
+  grid-column: span 3;
+}
+
+.cs-entry-actions {
+  grid-column: span 3;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-status {
+  min-height: 20px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.form-status.ready {
+  color: var(--safe);
+}
+
+.form-status.error {
+  color: var(--danger);
+}
+
 .table-wrap {
   width: 100%;
   min-width: 0;
@@ -682,6 +822,15 @@ td.cs-content {
   max-width: 420px;
   white-space: normal;
   line-height: 1.45;
+}
+
+.table-actions {
+  white-space: nowrap;
+}
+
+.compact-button {
+  padding: 7px 10px;
+  font-size: 12px;
 }
 
 .progress-cell {
@@ -1128,6 +1277,11 @@ td.cs-content {
     flex-direction: column;
   }
 
+  .cs-search-tools,
+  .cs-customer-search {
+    width: 100%;
+  }
+
   .sort-control {
     justify-content: flex-start;
   }
@@ -1182,6 +1336,16 @@ td.cs-content {
   .lowest-form,
   .lowest-form.email {
     grid-template-columns: 1fr;
+  }
+
+  .cs-entry-form {
+    grid-template-columns: 1fr;
+    padding: 0 14px 14px;
+  }
+
+  .cs-entry-form .wide-field,
+  .cs-entry-actions {
+    grid-column: span 1;
   }
 
   .price-console {

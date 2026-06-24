@@ -1,17 +1,23 @@
-const SHEET_ID = "1whGIBwNUDKzZp6hczvqNqExN_icFmwHPCt7385W15ws";
 const SHEETS = {
   cs: "CS DB",
   inventoryTurnover: "제품회전율",
   familySale: "패밀리세일DB원본",
 };
-const PUBLIC_SHEET_JSONP_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
-const SHEET_FETCH_TIMEOUT_MS = 20000;
+const SHEET_FETCH_TIMEOUT_MS = 60000;
+const ANNUAL_SAFE_TURNOVER = 1;
+const INVENTORY_COLUMNS = {
+  salesQuantity: 31,
+  periodStock: 43,
+  periodCostAmount: 46,
+};
+const SALES_MONTH_COLUMNS = [2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14];
 const TEAM_SHEETS = [
   { match: "영업1팀", name: "영업1팀", sheet: "영업1팀목표DB" },
   { match: "영업2팀", name: "영업2팀", sheet: "영업2팀목표DB" },
   { match: "영업3팀", name: "영업3팀", sheet: "영업3팀목표DB" },
   { match: "영업4팀", name: "영업4팀", sheet: "영업4팀목표DB" },
   { match: "해외영업팀", name: "해외영업팀", sheet: "해외영업팀목표DB" },
+  { match: "직영점", name: "직영점", sheets: ["직영점매출목표DB", "직영점DB", "직영점 DB"] },
 ];
 const HTML_ENTITIES = {
   "&": "&amp;",
@@ -22,7 +28,7 @@ const HTML_ENTITIES = {
 };
 const BUILD_INFO = {
   channel: "GitHub Upload",
-  version: "2026.06.07",
+  version: "2026.06.22",
 };
 const LOWEST_PRICE_API_STORAGE_KEY = "snowline-lowest-price-api-base";
 const LOWEST_PRICE_PRODUCTS_STORAGE_KEY = "snowline-lowest-price-products";
@@ -34,6 +40,7 @@ const LOWEST_PRICE_DEFAULT_API_BASE = ["localhost", "127.0.0.1"].includes(window
 
 const state = {
   query: "",
+  csCustomerQuery: "",
   selectedMonth: new Date().getMonth() + 1,
   productSort: "amount-desc",
   modalSort: "amount-desc",
@@ -88,6 +95,12 @@ const els = {
   salesBody: document.querySelector("#sales-body"),
   productsBody: document.querySelector("#products-body"),
   csBody: document.querySelector("#cs-body"),
+  csEntryForm: document.querySelector("#cs-entry-form"),
+  csEntryMessage: document.querySelector("#cs-entry-message"),
+  csSubmitButton: document.querySelector("#cs-submit-button"),
+  csCustomerSearch: document.querySelector("#cs-customer-search"),
+  csCustomerClear: document.querySelector("#cs-customer-clear"),
+  csSearchSummary: document.querySelector("#cs-search-summary"),
   priceMonitorSummary: document.querySelector("#price-monitor-summary"),
   priceMonitorBody: document.querySelector("#price-monitor-body"),
   lowestApiBase: document.querySelector("#lowest-api-base"),
@@ -153,6 +166,24 @@ els.searchInput.addEventListener("input", (event) => {
 
 els.refreshButton.addEventListener("click", loadDashboard);
 els.membersRefresh?.addEventListener("click", loadMembers);
+els.csEntryForm?.addEventListener("submit", handleCsSubmit);
+els.csCustomerSearch?.addEventListener("input", (event) => {
+  state.csCustomerQuery = event.target.value.trim().toLowerCase();
+  render();
+});
+els.csCustomerClear?.addEventListener("click", () => {
+  state.csCustomerQuery = "";
+  if (els.csCustomerSearch) els.csCustomerSearch.value = "";
+  render();
+});
+els.csEntryForm?.addEventListener("reset", () => {
+  setCsEntryMessage("");
+  setCsEditMode(null);
+  window.setTimeout(() => {
+    setDefaultCsDate();
+    setDefaultCsManager();
+  }, 0);
+});
 els.monthToggle.addEventListener("click", (event) => {
   const button = event.target.closest("[data-month]");
   if (!button) return;
@@ -188,7 +219,6 @@ document.addEventListener("click", (event) => {
   const priceSortButton = event.target.closest("[data-price-sort]");
   if (priceSortButton) {
     state.priceSort = getNextPriceSort(priceSortButton.dataset.priceSort);
-    syncPriceSortButtons();
     renderPriceMonitoring();
     return;
   }
@@ -196,6 +226,18 @@ document.addEventListener("click", (event) => {
   const memberActionButton = event.target.closest("[data-member-action]");
   if (memberActionButton) {
     updateMemberStatus(memberActionButton.dataset.userId, memberActionButton.dataset.memberAction);
+    return;
+  }
+
+  const csEditButton = event.target.closest("[data-cs-edit]");
+  if (csEditButton) {
+    startCsEdit(Number(csEditButton.dataset.csEdit));
+    return;
+  }
+
+  const csDeleteButton = event.target.closest("[data-cs-delete]");
+  if (csDeleteButton) {
+    deleteCs(Number(csDeleteButton.dataset.csDelete));
   }
 });
 
@@ -213,13 +255,25 @@ if (window.SnowlineAuth?.required) {
 function startDashboard(user) {
   if (dashboardStarted) return;
   dashboardStarted = true;
+  placeAuthUserBar();
+  window.setTimeout(placeAuthUserBar, 500);
   setupAdminView(user);
+  setDefaultCsDate();
+  setDefaultCsManager();
   loadDashboard();
+}
+
+function placeAuthUserBar() {
+  const bar = document.querySelector("#auth-user-bar");
+  const sidebar = document.querySelector(".sidebar");
+  if (!bar || !sidebar || bar.parentElement === sidebar) return;
+  sidebar.appendChild(bar);
 }
 
 function initBuildInfo() {
   if (!els.buildVersion) return;
-  els.buildVersion.textContent = `${BUILD_INFO.channel} 테스트 · ${BUILD_INFO.version}`;
+  const channelLabel = window.location.pathname.includes("/test/") ? "테스트" : "운영";
+  els.buildVersion.textContent = `${BUILD_INFO.channel} ${channelLabel} · ${BUILD_INFO.version}`;
 }
 
 function setupLowestPriceIntegration() {
@@ -268,22 +322,22 @@ async function loadDashboard() {
   setStatus("loading", "구글시트 데이터를 불러오는 중입니다.", "연결중");
 
   const errors = [];
-  const [csResult, inventoryResult, teamDetailsResult, familySaleResult] = await Promise.allSettled([
-    fetchSheet(SHEETS.cs),
-    fetchSheet(SHEETS.inventoryTurnover),
-    fetchTeamDetails(),
-    fetchSheet(SHEETS.familySale),
+  const [csResult, inventoryResult, teamDetailsResult, familySaleResult] = await Promise.all([
+    settle(fetchCsRecords),
+    settle(fetchInventoryProducts),
+    settle(() => fetchTeamDetails(null)),
+    settle(() => fetchSheet(SHEETS.familySale)),
   ]);
 
   if (csResult.status === "fulfilled") {
-    state.cs = parseCs(csResult.value);
+    state.cs = csResult.value;
   } else {
     state.cs = [];
     errors.push(`${SHEETS.cs}: ${formatLoadError(csResult.reason)}`);
   }
 
   if (inventoryResult.status === "fulfilled") {
-    state.inventoryProducts = parseInventoryProducts(inventoryResult.value);
+    state.inventoryProducts = inventoryResult.value;
     state.inventory = parseInventory(state.inventoryProducts);
     state.products = parseInventoryRanking(state.inventoryProducts);
   } else {
@@ -327,55 +381,105 @@ async function loadDashboard() {
   render();
 }
 
-async function fetchSheet(sheetName) {
-  const data = await loadSheetJsonp(sheetName);
-  if (data.status !== "ok") {
-    const detail = data.errors?.map((error) => error.detailed_message || error.message).filter(Boolean).join(" / ");
-    throw new Error(detail || `${sheetName} 시트를 불러오지 못했습니다.`);
+async function fetchCsRecords() {
+  if (!window.SnowlineAuth?.request) {
+    throw new Error("로그인 세션이 필요합니다.");
   }
-  return tableToRows(data.table);
+
+  try {
+    const result = await withTimeout(
+      window.SnowlineAuth.request({ action: "csRecords" }),
+      SHEET_FETCH_TIMEOUT_MS,
+      "CS 상담 데이터 조회 응답이 지연되고 있습니다.",
+    );
+    if (Array.isArray(result.rows)) return result.rows;
+    throw new Error(result.error || "CS 상담 데이터를 불러오지 못했습니다.");
+  } catch (error) {
+    console.warn("CS records API failed, falling back to CSV sheet load.", error);
+    return parseCs(await fetchSheet(SHEETS.cs));
+  }
 }
 
-function loadSheetJsonp(sheetName) {
-  const callbackName = `snowlineSheet_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const url = `${PUBLIC_SHEET_JSONP_BASE_URL}?tqx=out:json;responseHandler:${callbackName}&headers=0&sheet=${encodeURIComponent(sheetName)}`;
+async function fetchInventoryProducts() {
+  if (!window.SnowlineAuth?.request) {
+    throw new Error("로그인 세션이 필요합니다.");
+  }
 
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      script.remove();
-      delete window[callbackName];
-    };
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      reject(new Error("구글시트 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요."));
-    }, SHEET_FETCH_TIMEOUT_MS);
-
-    window[callbackName] = (payload) => {
-      cleanup();
-      resolve(payload);
-    };
-    script.onerror = () => {
-      cleanup();
-      reject(new Error(`${sheetName} 시트 공개 범위를 확인해주세요.`));
-    };
-    script.src = url;
-    document.head.appendChild(script);
-  });
+  try {
+    const result = await withTimeout(
+      window.SnowlineAuth.request({ action: "inventorySummary" }),
+      SHEET_FETCH_TIMEOUT_MS,
+      "재고 요약 데이터 조회 응답이 지연되고 있습니다.",
+    );
+    if (Array.isArray(result.products)) return result.products;
+    throw new Error(result.error || "재고 요약 데이터를 불러오지 못했습니다.");
+  } catch (error) {
+    console.warn("Inventory summary API failed, falling back to CSV sheet load.", error);
+    return parseInventoryProducts(await fetchSheet(SHEETS.inventoryTurnover));
+  }
 }
 
-function tableToRows(table = {}) {
-  const columns = table.cols || [];
-  return (table.rows || []).map((row) =>
-    columns.map((_, index) => {
-      const cell = row.c?.[index];
-      if (!cell) return "";
-      if (cell.f != null) return String(cell.f).trim();
-      if (cell.v == null) return "";
-      return String(cell.v).trim();
-    }),
+async function fetchSheet(sheetName) {
+  if (!window.SnowlineAuth?.request) {
+    throw new Error("로그인 세션이 필요합니다.");
+  }
+  const result = await withTimeout(
+    window.SnowlineAuth.request({ action: "sheet", sheetName }),
+    SHEET_FETCH_TIMEOUT_MS,
+    `${sheetName} 조회 응답이 지연되고 있습니다.`,
   );
+  if (!result.csv) throw new Error(`${sheetName} 데이터를 불러오지 못했습니다.`);
+  return parseCsv(result.csv);
+}
+
+async function fetchDashboardSheets() {
+  if (!window.SnowlineAuth?.request) {
+    throw new Error("로그인 세션이 필요합니다.");
+  }
+
+  try {
+    const sheetNames = [SHEETS.cs, SHEETS.inventoryTurnover];
+    const result = await withTimeout(
+      window.SnowlineAuth.request({ action: "dashboard", sheetNames }),
+      SHEET_FETCH_TIMEOUT_MS,
+      "구글시트 통합 조회 응답이 지연되고 있습니다.",
+    );
+    return result.sheets || {};
+  } catch (error) {
+    console.warn("Dashboard batch load failed, falling back to individual sheet requests.", error);
+    return null;
+  }
+}
+
+function getDashboardSheetResult(dashboardSheets, sheetName) {
+  if (!dashboardSheets) return settle(() => fetchSheet(sheetName));
+  const sheet = dashboardSheets[sheetName];
+  if (sheet?.csv) return { status: "fulfilled", value: parseCsv(sheet.csv) };
+  return { status: "rejected", reason: new Error(sheet?.error || `${sheetName} 데이터를 불러오지 못했습니다.`) };
+}
+
+function getTeamSheetNames() {
+  return [...new Set(TEAM_SHEETS.flatMap((team) => getTeamSheetCandidates(team)))];
+}
+
+function getTeamSheetCandidates(team) {
+  return team.sheets || [team.sheet];
+}
+
+async function settle(task) {
+  try {
+    return { status: "fulfilled", value: await task() };
+  } catch (error) {
+    return { status: "rejected", reason: error };
+  }
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
 }
 
 function formatLoadError(error) {
@@ -448,16 +552,15 @@ function parseInventory(products = []) {
   return [
     { label: "안전", value: counts["안전"] || 0 },
     { label: "관심", value: counts["관심"] || 0 },
-    { label: "처분", value: counts["처분"] || 0 },
     { label: "위험", value: counts["위험"] || 0 },
+    { label: "처분", value: counts["처분"] || 0 },
     { label: "총재고품목수", value: counts["총재고품목수"] || 0 },
   ];
 }
 
 function parseTeamDetail(rows) {
   const annualColumn = 16;
-  const months = Array.from({ length: 12 }, (_, index) => {
-    const column = index + 2;
+  const months = SALES_MONTH_COLUMNS.map((column, index) => {
     const target = toNumber(rows[2]?.[column]);
     const actual = toNumber(rows[3]?.[column]);
     return {
@@ -478,18 +581,31 @@ function parseTeamDetail(rows) {
   };
 }
 
-async function fetchTeamDetails() {
-  const results = await Promise.allSettled(
-    TEAM_SHEETS.map(async (team) => ({
-      rows: await fetchSheet(team.sheet),
-      updatedAt: new Date().toISOString(),
-    })),
-  );
+async function fetchTeamDetails(dashboardSheets) {
+  const summary = await fetchSalesSummary();
+  if (summary) return summary;
+
+  const results = dashboardSheets
+    ? TEAM_SHEETS.map((team) => {
+        const sheetName = getTeamSheetCandidates(team).find((candidate) => dashboardSheets[candidate]?.csv);
+        if (sheetName) {
+          return { status: "fulfilled", value: { rows: parseCsv(dashboardSheets[sheetName].csv), sheetName, updatedAt: new Date().toISOString() } };
+        }
+        const errors = getTeamSheetCandidates(team)
+          .map((candidate) => dashboardSheets[candidate]?.error)
+          .filter(Boolean)
+          .join(" / ");
+        return { status: "rejected", reason: new Error(errors || `${team.name} 데이터를 불러오지 못했습니다.`) };
+      })
+    : await Promise.allSettled(
+        TEAM_SHEETS.map((team) => fetchFirstTeamSheet(team)),
+      );
   const errors = [];
   const details = TEAM_SHEETS.reduce((details, team, index) => {
     if (results[index].status === "fulfilled") {
       details[team.match] = {
         name: team.name,
+        sheetName: results[index].value.sheetName,
         updatedAt: results[index].value.updatedAt,
         ...parseTeamDetail(results[index].value.rows),
       };
@@ -500,6 +616,51 @@ async function fetchTeamDetails() {
   }, {});
   Object.defineProperty(details, "_errors", { value: errors, enumerable: false });
   return details;
+}
+
+async function fetchSalesSummary() {
+  if (!window.SnowlineAuth?.request) return null;
+  try {
+    const result = await withTimeout(
+      window.SnowlineAuth.request({ action: "salesSummary" }),
+      SHEET_FETCH_TIMEOUT_MS,
+      "매출 요약 조회 응답이 지연되고 있습니다.",
+    );
+    const details = (result.teams || []).reduce((acc, team) => {
+      acc[team.match] = {
+        name: team.name,
+        sheetName: team.sheetName,
+        months: team.months || [],
+        annualTarget: toNumber(team.annualTarget),
+        annualActual: toNumber(team.annualActual),
+        annualRate: toNumber(team.annualRate),
+        updatedAt: team.updatedAt,
+      };
+      return acc;
+    }, {});
+    Object.defineProperty(details, "_errors", { value: result.errors || [], enumerable: false });
+    return details;
+  } catch (error) {
+    console.warn("Sales summary load failed, falling back to sheet reads.", error);
+    return null;
+  }
+}
+
+async function fetchFirstTeamSheet(team) {
+  const candidates = getTeamSheetCandidates(team);
+  const errors = [];
+  for (const sheetName of candidates) {
+    try {
+      return {
+        rows: await fetchSheet(sheetName),
+        sheetName,
+        updatedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      errors.push(`${sheetName}: ${formatLoadError(error)}`);
+    }
+  }
+  throw new Error(errors.join(" / ") || `${team.name} 데이터를 불러오지 못했습니다.`);
 }
 
 function buildTeamsFromDetails(teamDetails = {}) {
@@ -573,27 +734,45 @@ function parseInventoryRanking(products) {
 
 function parseInventoryProducts(rows) {
   return rows
-    .slice(1)
+    .slice(2)
     .map((row) => {
-      const turnover = toNumber(row[38]);
-      const sheetStatus = String(row[37] || "").trim();
+      const salesQuantity = toNumber(row[INVENTORY_COLUMNS.salesQuantity]);
+      const stock = toNumber(row[INVENTORY_COLUMNS.periodStock]);
+      const amount = toNumber(row[INVENTORY_COLUMNS.periodCostAmount]);
+      const turnover = stock ? salesQuantity / stock : 0;
+      const code = String(row[5] || "").trim();
       return {
-        code: row[5],
+        code,
         name: row[6],
         salePrice: toNumber(row[8]),
-        stock: toNumber(row[34]),
-        amount: toNumber(row[36]),
-        status: isInventoryStatus(sheetStatus) ? normalizeInventoryStatus(sheetStatus) : getTurnoverStatus(turnover),
+        stock,
+        amount,
+        status: getTurnoverStatus(turnover),
         turnover,
       };
     })
-    .filter((row) => row.code && row.name && isInventoryStatus(row.status));
+    .filter(
+      (row) =>
+        isSnowlineProductCode(row.code) &&
+        row.name &&
+        !isExcludedInventoryProductName(row.name) &&
+        row.stock > 0 &&
+        isInventoryStatus(row.status),
+    );
+}
+
+function isSnowlineProductCode(code) {
+  return String(code || "").trim().toUpperCase().startsWith("SN");
+}
+
+function isExcludedInventoryProductName(name) {
+  return String(name || "").includes("이지캠핑");
 }
 
 function parseCs(rows) {
   return rows
-    .slice(1)
-    .map((row) => ({
+    .map((row, index) => ({
+      rowNumber: index + 1,
       date: row[0],
       channel: row[1],
       customer: row[2],
@@ -601,16 +780,16 @@ function parseCs(rows) {
       code: row[4],
       product: row[5],
       content: row[8],
-      totalCost: toNumber(row[13]),
-      manager: row[14],
+      totalCost: toNumber(row[14]),
+      manager: row[15],
     }))
-    .filter((row) => row.date || row.product || row.content);
+    .filter((row) => row.rowNumber >= 4 && (row.date || row.product || row.content));
 }
 
 function render() {
   const products = filterRows(state.products, ["code", "name"]);
   const teams = filterRows(state.teams, ["team"]);
-  const cs = filterRows(state.cs, ["customer", "category", "code", "product", "content", "manager"]);
+  const cs = filterCsRows(filterRows(state.cs, ["customer", "category", "code", "product", "content", "manager"]));
 
   renderKpis();
   renderMonthToggle();
@@ -621,35 +800,11 @@ function render() {
   renderProducts(els.productsBody, products);
   renderSales(teams);
   renderCs(cs);
+  renderCsSearchSummary(cs);
   renderPriceMonitoring();
   renderInventoryRisk();
   renderActionQueue(teams, cs);
   renderChannelSales();
-}
-
-function parseFamilySalePriceItems(rows) {
-  return rows
-    .slice(2)
-    .map((row) => {
-      const basePrice = toNumber(row[12]);
-      const lowestPrice = toNumber(row[17]);
-      const dropAmount = Math.max(0, basePrice - lowestPrice);
-      const dropRate = basePrice ? dropAmount / basePrice : 0;
-      return {
-        category: row[0],
-        code: row[1],
-        name: [row[2], row[4]].filter(Boolean).join(" / "),
-        basePrice,
-        lowestPrice,
-        dropRate,
-        dropAmount,
-        seller: "패밀리세일",
-        url: "",
-        note: row[15] || row[16] || "패밀리세일DB원본 기준",
-      };
-    })
-    .filter((item) => item.code && item.name && item.basePrice > 0 && item.lowestPrice > 0 && item.dropAmount > 0)
-    .sort((a, b) => b.dropRate - a.dropRate);
 }
 
 function renderMonthToggle() {
@@ -768,7 +923,7 @@ function renderProducts(target, products) {
 }
 
 function renderCs(rows) {
-  if (!rows.length) return renderTableEmpty(els.csBody, 8, "CS 상담 데이터가 없습니다.");
+  if (!rows.length) return renderTableEmpty(els.csBody, 9, "CS 상담 데이터가 없습니다.");
   els.csBody.innerHTML = rows
     .map((row) => `<tr>
       <td>${escapeHtml(row.date)}</td>
@@ -779,8 +934,196 @@ function renderCs(rows) {
       <td class="cs-content">${escapeHtml(row.content)}</td>
       <td>${formatWon(row.totalCost)}</td>
       <td>${escapeHtml(row.manager)}</td>
+      <td class="table-actions">
+        <button class="secondary-button compact-button" type="button" data-cs-edit="${row.rowNumber}">수정</button>
+        <button class="danger-button compact-button" type="button" data-cs-delete="${row.rowNumber}">삭제</button>
+      </td>
     </tr>`)
     .join("");
+}
+
+function filterCsRows(rows) {
+  if (!state.csCustomerQuery) return rows;
+  return rows.filter((row) => String(row.customer || "").toLowerCase().includes(state.csCustomerQuery));
+}
+
+function renderCsSearchSummary(rows) {
+  if (!els.csSearchSummary) return;
+  const customer = els.csCustomerSearch?.value?.trim();
+  if (customer) {
+    els.csSearchSummary.textContent = `${customer} 상담내역 ${formatNumber(rows.length)}건`;
+    return;
+  }
+  els.csSearchSummary.textContent = `전체 상담내역 ${formatNumber(state.cs.length)}건`;
+}
+
+async function deleteCs(rowNumber) {
+  const row = state.cs.find((item) => item.rowNumber === rowNumber);
+  if (!row) {
+    setCsEntryMessage("삭제할 CS 상담을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.", "error");
+    return;
+  }
+
+  const subject = row.customer || row.product || row.content || "선택한 상담";
+  if (!window.confirm(`"${subject}" 상담내역을 삭제할까요? 삭제 후에는 화면에서 복구할 수 없습니다.`)) return;
+
+  setCsEntryMessage("CS 상담을 삭제하는 중입니다.");
+  try {
+    await window.SnowlineAuth.request({ action: "deleteCs", rowNumber });
+    if (els.csEntryForm?.elements?.rowNumber?.value === String(rowNumber)) {
+      els.csEntryForm.reset();
+      setCsEditMode(null);
+      setDefaultCsDate();
+      setDefaultCsManager();
+    }
+    await loadDashboard();
+    setCsEntryMessage("CS 상담이 삭제되었습니다.", "ready");
+  } catch (error) {
+    setCsEntryMessage(error.message || "CS 상담을 삭제하지 못했습니다.", "error");
+  }
+}
+
+async function handleCsSubmit(event) {
+  event.preventDefault();
+  if (!els.csEntryForm) return;
+
+  const form = new FormData(els.csEntryForm);
+  const rawDate = form.get("date");
+  const entry = {
+    rowNumber: Number(form.get("rowNumber")) || 0,
+    date: rawDate ? normalizeCsDate(rawDate) : "",
+    channel: form.get("channel"),
+    customer: form.get("customer"),
+    category: form.get("category"),
+    code: form.get("code"),
+    product: form.get("product"),
+    content: form.get("content"),
+    totalCost: form.get("totalCost"),
+    manager: getCurrentAccountName(),
+  };
+
+  if (!String(entry.channel || "").trim()) {
+    setCsEntryMessage("채널을 입력해주세요.", "error");
+    return;
+  }
+  if (!String(entry.content || "").trim()) {
+    setCsEntryMessage("상담내용을 입력해주세요.", "error");
+    return;
+  }
+
+  const registeredCustomer = String(entry.customer || "").trim();
+  const isEdit = Boolean(entry.rowNumber);
+
+  setCsEntryMessage(isEdit ? "CS 상담을 수정하는 중입니다." : "CS 상담을 등록하는 중입니다.");
+  try {
+    await window.SnowlineAuth.request({ action: isEdit ? "updateCs" : "addCs", entry });
+    els.csEntryForm.reset();
+    setCsEditMode(null);
+    setDefaultCsDate();
+    if (registeredCustomer) {
+      state.csCustomerQuery = registeredCustomer.toLowerCase();
+      if (els.csCustomerSearch) els.csCustomerSearch.value = registeredCustomer;
+      state.query = "";
+      if (els.searchInput) els.searchInput.value = "";
+    } else {
+      state.csCustomerQuery = "";
+      if (els.csCustomerSearch) els.csCustomerSearch.value = "";
+      state.query = "";
+      if (els.searchInput) els.searchInput.value = "";
+    }
+    await loadDashboard();
+    if (registeredCustomer) {
+      setCsEntryMessage(`CS 상담이 ${isEdit ? "수정" : "등록"}되었습니다. "${registeredCustomer}" 고객명으로 조회했습니다.`, "ready");
+    } else {
+      setCsEntryMessage(`CS 상담이 ${isEdit ? "수정" : "등록"}되었습니다.`, "ready");
+    }
+  } catch (error) {
+    setCsEntryMessage(error.message || `CS 상담을 ${isEdit ? "수정" : "등록"}하지 못했습니다.`, "error");
+  }
+}
+
+function startCsEdit(rowNumber) {
+  if (!els.csEntryForm || !rowNumber) return;
+  const row = state.cs.find((item) => item.rowNumber === rowNumber);
+  if (!row) {
+    setCsEntryMessage("수정할 CS 상담을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.", "error");
+    return;
+  }
+
+  const form = els.csEntryForm.elements;
+  form.rowNumber.value = row.rowNumber;
+  form.date.value = toDateTimeLocalValue(row.date);
+  form.channel.value = row.channel || "";
+  form.customer.value = row.customer || "";
+  form.category.value = row.category || "";
+  form.code.value = row.code || "";
+  form.product.value = row.product || "";
+  form.content.value = row.content || "";
+  form.totalCost.value = row.totalCost ? String(row.totalCost) : "";
+  form.manager.value = getCurrentAccountName();
+  setCsEditMode(row.rowNumber);
+  setCsEntryMessage("CS 상담 내용을 수정한 뒤 CS 수정 버튼을 눌러주세요.", "ready");
+  els.csEntryForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setCsEditMode(rowNumber) {
+  if (els.csEntryForm?.elements?.rowNumber) {
+    els.csEntryForm.elements.rowNumber.value = rowNumber || "";
+  }
+  if (els.csSubmitButton) {
+    els.csSubmitButton.textContent = rowNumber ? "CS 수정" : "CS 등록";
+  }
+}
+
+function setDefaultCsDate() {
+  const dateInput = els.csEntryForm?.elements?.date;
+  if (!dateInput || dateInput.value) return;
+
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  dateInput.value = now.toISOString().slice(0, 16);
+}
+
+function setDefaultCsManager() {
+  const managerInput = els.csEntryForm?.elements?.manager;
+  if (!managerInput) return;
+  managerInput.value = getCurrentAccountName();
+}
+
+function getCurrentAccountName() {
+  const user = window.SnowlineAuth?.getSession?.()?.user;
+  return user?.displayName || user?.userId || "";
+}
+
+function normalizeCsDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return new Date().toLocaleString("ko-KR");
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString("ko-KR");
+}
+
+function toDateTimeLocalValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const normalized = raw
+    .replace(/\.\s*/g, "-")
+    .replace(/-\s*(오전|AM)\s*/i, " ")
+    .replace(/-\s*(오후|PM)\s*/i, " PM ")
+    .replace(/\s*(오전|AM)\s*/i, " ")
+    .replace(/\s*(오후|PM)\s*/i, " PM ");
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return "";
+
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+}
+
+function setCsEntryMessage(message, type = "") {
+  if (!els.csEntryMessage) return;
+  els.csEntryMessage.textContent = message;
+  els.csEntryMessage.className = `form-status ${type}`.trim();
 }
 
 function renderPriceMonitoring() {
@@ -1453,7 +1796,7 @@ function buildActionItems(teams, cs) {
     actions.push({
       type: "재고",
       item: product.name,
-      basis: `${product.status} · 재고금액 ${formatWon(product.amount)}`,
+      basis: `${product.status} · 재고금액(원가) ${formatWon(product.amount)}`,
       priority: product.status === "위험" || product.status === "처분" ? "높음" : "보통",
       status: "검토",
     });
@@ -1522,7 +1865,7 @@ function getInventoryRiskProducts() {
   return state.inventoryProducts
     .filter((product) => ["위험", "처분", "관심"].includes(product.status))
     .sort((a, b) => {
-      const priority = { 위험: 0, 처분: 1, 관심: 2 };
+      const priority = { 처분: 0, 위험: 1, 관심: 2 };
       return priority[a.status] - priority[b.status] || b.amount - a.amount;
     });
 }
@@ -1582,7 +1925,7 @@ function getPriceSortLabel(sortKey) {
 
 function getInventoryActionLabel(status) {
   if (status === "위험") return "품절/재고 검토";
-  if (status === "처분") return "처분/가격 검토";
+  if (status === "처분") return "처분/재고 검토";
   return "회전율 확인";
 }
 
@@ -1745,8 +2088,8 @@ function openInventoryModal(statusLabel) {
   els.inventoryModalTitle.textContent = `${statusLabel} 제품 리스트`;
   els.inventoryModalSubtitle.textContent =
     statusKey === "all"
-      ? `제품회전율 시트 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`
-      : `제품회전율 시트 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`;
+      ? `제품회전율 시트의 기간재고 원가 기준 전체 ${formatNumber(products.length)}개를 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`
+      : `제품회전율 시트의 기간재고 원가 기준 ${formatNumber(summaryCount)}개 상품을 ${getSortLabel(state.modalSort)}으로 정렬했습니다.`;
 
   if (!products.length) {
     renderTableEmpty(els.inventoryModalBody, 7, "제품회전율 시트 기준 해당 상태 제품이 없습니다.");
@@ -1788,7 +2131,8 @@ function isInventoryStatus(status) {
 
 function getTurnoverStatus(turnover) {
   if (turnover < 0.8) return "처분";
-  if (turnover < 1) return "관심";
+  if (turnover < 0.9) return "위험";
+  if (turnover < ANNUAL_SAFE_TURNOVER) return "관심";
   return "안전";
 }
 
@@ -1808,7 +2152,7 @@ function compareInventoryProducts(a, b, sortKey) {
 function getSortLabel(sortKey) {
   if (sortKey === "turnover-asc") return "회전율 낮은순";
   if (sortKey === "turnover-desc") return "회전율 높은순";
-  return "재고금액순";
+  return "재고금액(원가)순";
 }
 
 function syncSortButtons(selector, activeValue) {
