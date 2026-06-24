@@ -44,6 +44,11 @@ const SALES_SHEETS = [
   { match: "해외영업팀", name: "해외영업팀", sheets: ["해외영업팀목표DB"] },
   { match: "직영점", name: "직영점", sheets: ["직영점매출목표DB", "직영점DB", "직영점 DB"], fallbackKeyword: "직영" },
 ];
+const INVENTORY_COLUMNS = {
+  salesQuantity: 31,
+  periodStock: 43,
+  periodCostAmount: 46,
+};
 
 function initializeAuth() {
   const props = PropertiesService.getScriptProperties();
@@ -71,6 +76,8 @@ function doPost(e) {
     if (action === "dashboard") return json_(dashboard_(payload));
     if (action === "sheet") return json_(sheet_(payload));
     if (action === "salesSummary") return json_(salesSummary_(payload));
+    if (action === "inventorySummary") return json_(inventorySummary_(payload));
+    if (action === "csRecords") return json_(csRecords_(payload));
     if (action === "addCs") return json_(addCs_(payload));
     if (action === "updateCs") return json_(updateCs_(payload));
     if (action === "deleteCs") return json_(deleteCs_(payload));
@@ -199,6 +206,9 @@ function buildSpreadsheetAccessMessage_(error) {
 
 function salesSummary_(payload) {
   requireUser_(payload.token);
+  const cached = getCacheJson_("salesSummary:v1");
+  if (cached) return cached;
+
   const spreadsheet = SpreadsheetApp.openById(CONFIG.spreadsheetId);
   const teams = [];
   const errors = [];
@@ -224,7 +234,9 @@ function salesSummary_(payload) {
     }
   });
 
-  return { ok: true, teams, errors };
+  const result = { ok: true, teams, errors };
+  setCacheJson_("salesSummary:v1", result, 60);
+  return result;
 }
 
 function findSalesSheet_(spreadsheet, names, fallbackKeyword) {
@@ -268,6 +280,102 @@ function buildSalesSummary_(rows) {
   };
 }
 
+function inventorySummary_(payload) {
+  requireUser_(payload.token);
+  const cached = getCacheJson_("inventorySummary:v2");
+  if (cached) return cached;
+
+  const sheet = SpreadsheetApp.openById(CONFIG.spreadsheetId).getSheetByName("제품회전율");
+  if (!sheet) throw new Error("제품회전율 시트를 찾을 수 없습니다.");
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 2) return { ok: true, products: [] };
+
+  const rowCount = lastRow - 2;
+  const productInfo = sheet.getRange(3, 6, rowCount, 4).getDisplayValues();
+  const salesQuantities = sheet.getRange(3, INVENTORY_COLUMNS.salesQuantity + 1, rowCount, 1).getDisplayValues();
+  const stocks = sheet.getRange(3, INVENTORY_COLUMNS.periodStock + 1, rowCount, 1).getDisplayValues();
+  const amounts = sheet.getRange(3, INVENTORY_COLUMNS.periodCostAmount + 1, rowCount, 1).getDisplayValues();
+  const products = productInfo
+    .map((row, index) => rowToInventoryProduct_(row, salesQuantities[index][0], stocks[index][0], amounts[index][0]))
+    .filter((product) =>
+      isSnowlineProductCode_(product.code) &&
+      product.name &&
+      !isExcludedInventoryProductName_(product.name) &&
+      product.stock > 0 &&
+      isInventoryStatus_(product.status)
+    );
+
+  const result = { ok: true, products, updatedAt: new Date().toISOString() };
+  setCacheJson_("inventorySummary:v2", result, 60);
+  return result;
+}
+
+function rowToInventoryProduct_(productRow, salesQuantityValue, stockValue, amountValue) {
+  const salesQuantity = parseNumber_(salesQuantityValue);
+  const stock = parseNumber_(stockValue);
+  const amount = parseNumber_(amountValue);
+  const turnover = stock ? salesQuantity / stock : 0;
+  return {
+    code: cleanText_(productRow[0]),
+    name: cleanText_(productRow[1]),
+    salePrice: parseNumber_(productRow[3]),
+    stock,
+    amount,
+    status: getTurnoverStatus_(turnover),
+    turnover,
+  };
+}
+
+function getTurnoverStatus_(turnover) {
+  if (turnover < 0.8) return "처분";
+  if (turnover < 0.9) return "위험";
+  if (turnover < 1) return "관심";
+  return "안전";
+}
+
+function isInventoryStatus_(status) {
+  return ["안전", "관심", "위험", "처분"].includes(status);
+}
+
+function isSnowlineProductCode_(code) {
+  return String(code || "").trim().toUpperCase().startsWith("SN");
+}
+
+function isExcludedInventoryProductName_(name) {
+  return String(name || "").includes("이지캠핑");
+}
+
+function csRecords_(payload) {
+  requireUser_(payload.token);
+  const cached = getCacheJson_("csRecords:v1");
+  if (cached) return cached;
+
+  const sheet = csSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 4) return { ok: true, rows: [] };
+
+  const values = sheet.getRange(1, 1, lastRow, Math.max(sheet.getLastColumn(), 16)).getDisplayValues();
+  const rows = values
+    .map((row, index) => ({
+      rowNumber: index + 1,
+      date: row[0],
+      channel: row[1],
+      customer: row[2],
+      category: row[3],
+      code: row[4],
+      product: row[5],
+      content: row[8],
+      totalCost: parseNumber_(row[14]),
+      manager: row[15],
+    }))
+    .filter((row) => row.rowNumber >= 4 && (row.date || row.product || row.content));
+
+  const result = { ok: true, rows, updatedAt: new Date().toISOString() };
+  setCacheJson_("csRecords:v1", result, 30);
+  return result;
+}
+
 function addCs_(payload) {
   const user = requireUser_(payload.token);
   const entry = payload.entry || {};
@@ -275,6 +383,7 @@ function addCs_(payload) {
   const row = buildCsRow_(entry, user);
 
   sheet.appendRow(row);
+  removeCache_(["csRecords:v1"]);
   audit_("cs_add", user.userId, `${row[1]} / ${row[5] || row[2] || "no_subject"}`);
   return { ok: true, rowNumber: sheet.getLastRow() };
 }
@@ -293,6 +402,7 @@ function updateCs_(payload) {
   const currentRow = sheet.getRange(rowNumber, 1, 1, Math.max(sheet.getLastColumn(), 16)).getDisplayValues()[0];
   const row = buildCsRow_(entry, user, currentRow[0], currentRow);
   sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
+  removeCache_(["csRecords:v1"]);
   audit_("cs_update", user.userId, `${rowNumber} / ${row[1]} / ${row[5] || row[2] || "no_subject"}`);
   return { ok: true, rowNumber };
 }
@@ -310,6 +420,7 @@ function deleteCs_(payload) {
   const currentRow = sheet.getRange(rowNumber, 1, 1, Math.max(sheet.getLastColumn(), 16)).getDisplayValues()[0];
   assertCanDeleteCs_(user, currentRow);
   sheet.deleteRow(rowNumber);
+  removeCache_(["csRecords:v1"]);
   audit_("cs_delete", user.userId, `${rowNumber} / ${cleanText_(currentRow[1])} / ${cleanText_(currentRow[5]) || cleanText_(currentRow[2]) || "no_subject"}`);
   return { ok: true, rowNumber };
 }
@@ -582,6 +693,31 @@ function toCsv_(rows) {
 function csvCell_(value) {
   const text = String(value == null ? "" : value);
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function getCacheJson_(key) {
+  try {
+    const text = CacheService.getScriptCache().get(key);
+    return text ? JSON.parse(text) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setCacheJson_(key, value, seconds) {
+  try {
+    CacheService.getScriptCache().put(key, JSON.stringify(value), seconds);
+  } catch (error) {
+    // Cache entries are an optimization only; ignore size or service limits.
+  }
+}
+
+function removeCache_(keys) {
+  try {
+    CacheService.getScriptCache().removeAll(keys);
+  } catch (error) {
+    // Cache invalidation failure should not block data writes.
+  }
 }
 
 function audit_(action, userId, detail) {

@@ -211,36 +211,21 @@ async function loadDashboard() {
   setStatus("loading", "구글시트 데이터를 불러오는 중입니다.", "연결중");
 
   const errors = [];
-  let dashboardSheets = null;
-  try {
-    dashboardSheets = await fetchDashboardSheets();
-  } catch (error) {
-    console.error("Dashboard load failed before sheet requests.", error);
-    state.cs = [];
-    state.inventoryProducts = [];
-    state.inventory = [];
-    state.products = [];
-    state.teamDetails = {};
-    state.teams = [];
-    setStatus("error", formatLoadError(error), "오류");
-    render();
-    return;
-  }
   const [csResult, inventoryResult, teamDetailsResult] = await Promise.all([
-    getDashboardSheetResult(dashboardSheets, SHEETS.cs),
-    getDashboardSheetResult(dashboardSheets, SHEETS.inventoryTurnover),
-    settle(() => fetchTeamDetails(dashboardSheets)),
+    settle(fetchCsRecords),
+    settle(fetchInventoryProducts),
+    settle(() => fetchTeamDetails(null)),
   ]);
 
   if (csResult.status === "fulfilled") {
-    state.cs = parseCs(csResult.value);
+    state.cs = csResult.value;
   } else {
     state.cs = [];
     errors.push(`${SHEETS.cs}: ${formatLoadError(csResult.reason)}`);
   }
 
   if (inventoryResult.status === "fulfilled") {
-    state.inventoryProducts = parseInventoryProducts(inventoryResult.value);
+    state.inventoryProducts = inventoryResult.value;
     state.inventory = parseInventory(state.inventoryProducts);
     state.products = parseInventoryRanking(state.inventoryProducts);
   } else {
@@ -274,6 +259,44 @@ async function loadDashboard() {
     setStatus("ready", `${new Date().toLocaleString("ko-KR")} 기준으로 갱신되었습니다.`, "연결됨");
   }
   render();
+}
+
+async function fetchCsRecords() {
+  if (!window.SnowlineAuth?.request) {
+    throw new Error("로그인 세션이 필요합니다.");
+  }
+
+  try {
+    const result = await withTimeout(
+      window.SnowlineAuth.request({ action: "csRecords" }),
+      SHEET_FETCH_TIMEOUT_MS,
+      "CS 상담 데이터 조회 응답이 지연되고 있습니다.",
+    );
+    if (Array.isArray(result.rows)) return result.rows;
+    throw new Error(result.error || "CS 상담 데이터를 불러오지 못했습니다.");
+  } catch (error) {
+    console.warn("CS records API failed, falling back to CSV sheet load.", error);
+    return parseCs(await fetchSheet(SHEETS.cs));
+  }
+}
+
+async function fetchInventoryProducts() {
+  if (!window.SnowlineAuth?.request) {
+    throw new Error("로그인 세션이 필요합니다.");
+  }
+
+  try {
+    const result = await withTimeout(
+      window.SnowlineAuth.request({ action: "inventorySummary" }),
+      SHEET_FETCH_TIMEOUT_MS,
+      "재고 요약 데이터 조회 응답이 지연되고 있습니다.",
+    );
+    if (Array.isArray(result.products)) return result.products;
+    throw new Error(result.error || "재고 요약 데이터를 불러오지 못했습니다.");
+  } catch (error) {
+    console.warn("Inventory summary API failed, falling back to CSV sheet load.", error);
+    return parseInventoryProducts(await fetchSheet(SHEETS.inventoryTurnover));
+  }
 }
 
 async function fetchSheet(sheetName) {
