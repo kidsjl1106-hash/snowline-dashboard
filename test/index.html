@@ -6,11 +6,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <meta name="referrer" content="no-referrer" />
     <title>SNOWLINE 영업 대시보드 | GitHub Upload</title>
     <link rel="icon" href="./assets/logo.png?v=2026060701" />
-    <link rel="stylesheet" href="./auth.css?v=2026062301" />
-    <link rel="stylesheet" href="./styles.css?v=2026062303" />
+    <link rel="stylesheet" href="./auth.css?v=2026060701" />
+    <link rel="stylesheet" href="./styles.css?v=2026061203" />
   </head>
   <body class="auth-locked">
     <div class="app-shell">
@@ -36,21 +35,25 @@
             <span>Products</span>
             <small>상품 운영</small>
           </button>
+          <button class="nav-tab" data-view="price" type="button">
+            <span>Price</span>
+            <small>가격 모니터링</small>
+          </button>
           <button class="nav-tab" data-view="inventory-risk" type="button">
             <span>Inventory</span>
             <small>재고 위험</small>
           </button>
           <button class="nav-tab" data-view="cs" type="button">
             <span>CS</span>
-            <small>고객상담</small>
+            <small>품질 이슈</small>
+          </button>
+          <button class="nav-tab" data-view="actions" type="button">
+            <span>Actions</span>
+            <small>업무 액션</small>
           </button>
           <button class="nav-tab" data-view="channel" type="button">
             <span>Channel</span>
             <small>채널 운영</small>
-          </button>
-          <button class="nav-tab" data-view="reports" type="button">
-            <span>Reports</span>
-            <small>보고서</small>
           </button>
           <button class="nav-tab admin-only" data-view="members" type="button">
             <span>Members</span>
@@ -161,10 +164,10 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Ranking</p>
-                  <h2>기간재고 원가금액 상위 제품</h2>
+                <h2>재고금액 상위 제품</h2>
               </div>
               <div class="sort-control" aria-label="제품 정렬">
-                <button class="active" type="button" data-product-sort="amount-desc">재고금액(원가)순</button>
+                <button class="active" type="button" data-product-sort="amount-desc">재고금액순</button>
                 <button type="button" data-product-sort="turnover-desc">회전율 높은순</button>
                 <button type="button" data-product-sort="turnover-asc">회전율 낮은순</button>
               </div>
@@ -178,7 +181,7 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액(원가)</th>
+                    <th>재고금액</th>
                   </tr>
                 </thead>
                 <tbody id="top-products-body"></tbody>
@@ -217,10 +220,10 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Products</p>
-                <h2>기간재고 기준 현 재고금액(원가) 랭킹</h2>
+                <h2>제품별 재고금액 랭킹</h2>
               </div>
               <div class="sort-control" aria-label="제품 정렬">
-                <button class="active" type="button" data-product-sort="amount-desc">재고금액(원가)순</button>
+                <button class="active" type="button" data-product-sort="amount-desc">재고금액순</button>
                 <button type="button" data-product-sort="turnover-desc">회전율 높은순</button>
                 <button type="button" data-product-sort="turnover-asc">회전율 낮은순</button>
               </div>
@@ -234,7 +237,7 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액(원가)</th>
+                    <th>재고금액</th>
                   </tr>
                 </thead>
                 <tbody id="products-body"></tbody>
@@ -250,59 +253,7 @@
                 <p class="eyebrow">Customer Service</p>
                 <h2>CS 상담 현황</h2>
               </div>
-              <div class="cs-search-tools">
-                <label class="cs-customer-search">
-                  <span>고객명 조회</span>
-                  <input id="cs-customer-search" type="search" placeholder="고객명 입력" autocomplete="off" />
-                </label>
-                <button class="secondary-button compact-button" id="cs-customer-clear" type="button">초기화</button>
-                <span class="panel-summary" id="cs-search-summary">전체 상담내역</span>
-              </div>
             </div>
-            <form class="cs-entry-form" id="cs-entry-form">
-              <input name="rowNumber" type="hidden" />
-              <label>
-                <span>상담일시</span>
-                <input name="date" type="datetime-local" />
-              </label>
-              <label>
-                <span>채널</span>
-                <input name="channel" type="text" placeholder="전화, 카카오, 네이버" required />
-              </label>
-              <label>
-                <span>고객명</span>
-                <input name="customer" type="text" autocomplete="off" placeholder="필요 최소 정보만 입력" />
-              </label>
-              <label>
-                <span>제품구분</span>
-                <input name="category" type="text" autocomplete="off" />
-              </label>
-              <label>
-                <span>제품코드</span>
-                <input name="code" type="text" autocomplete="off" placeholder="SN..." />
-              </label>
-              <label>
-                <span>제품명</span>
-                <input name="product" type="text" autocomplete="off" />
-              </label>
-              <label class="wide-field">
-                <span>상담내용</span>
-                <textarea name="content" rows="3" autocomplete="off" placeholder="주민번호, 카드번호 등 고유식별정보 입력 금지" required></textarea>
-              </label>
-              <label>
-                <span>총 청구비용</span>
-                <input name="totalCost" type="text" inputmode="numeric" placeholder="0" />
-              </label>
-              <label>
-                <span>상담자</span>
-                <input name="manager" type="text" autocomplete="off" readonly title="로그인 계정명으로 자동 저장됩니다." />
-              </label>
-              <div class="cs-entry-actions">
-                <button class="refresh-button" id="cs-submit-button" type="submit">CS 등록</button>
-                <button class="secondary-button" type="reset">초기화</button>
-                <span id="cs-entry-message" class="form-status"></span>
-              </div>
-            </form>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -315,11 +266,176 @@
                     <th>상담내용</th>
                     <th>총 청구비용</th>
                     <th>상담자</th>
-                    <th>관리</th>
                   </tr>
                 </thead>
                 <tbody id="cs-body"></tbody>
               </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="price">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Price Monitoring</p>
+                <h2>온라인 최저가 통합 운영</h2>
+              </div>
+              <div class="panel-summary" id="price-monitor-summary">최저가 API 연결 대기</div>
+            </div>
+
+            <div class="price-console">
+              <div class="price-console-bar">
+                <label class="price-api-field">
+                  <span>API 주소</span>
+                  <input id="lowest-api-base" type="url" placeholder="https://lowest-price.example.com" autocomplete="off" />
+                </label>
+                <button id="lowest-api-save" class="secondary-button" type="button">저장</button>
+                <button id="lowest-check-button" class="refresh-button" type="button">조회</button>
+                <button id="lowest-export-button" class="secondary-button" type="button">CSV</button>
+                <span id="lowest-api-status" class="price-api-status">연결 확인 전</span>
+              </div>
+
+              <div class="price-work-grid">
+                <section class="lowest-section">
+                  <div class="lowest-section-head">
+                    <h3>상품 목록</h3>
+                    <button id="lowest-clear-products" class="icon-button" type="button" title="개별 등록 상품 삭제">×</button>
+                  </div>
+                  <form id="lowest-product-form" class="lowest-form">
+                    <label>
+                      <span>상품명</span>
+                      <input id="lowest-product-name" type="text" autocomplete="off" placeholder="아웃도어10인용코펠" />
+                    </label>
+                    <label>
+                      <span>기준가격</span>
+                      <input id="lowest-base-price" type="text" inputmode="numeric" placeholder="107200" />
+                    </label>
+                    <button class="secondary-button" type="submit">추가</button>
+                  </form>
+                  <label class="lowest-bulk">
+                    <span>붙여넣기</span>
+                    <textarea id="lowest-bulk-input" rows="4" placeholder="상품명, 기준가격"></textarea>
+                  </label>
+                  <div class="lowest-inline-actions">
+                    <button id="lowest-bulk-import" class="secondary-button" type="button">목록 반영</button>
+                    <input id="lowest-excel-file" class="lowest-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                    <button id="lowest-excel-import" class="secondary-button" type="button">엑셀 반영</button>
+                  </div>
+                  <div class="table-wrap lowest-product-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>상품명</th>
+                          <th>기준가격</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody id="lowest-product-rows"></tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section class="lowest-section">
+                  <div class="lowest-section-head">
+                    <h3>알림 / 감시</h3>
+                    <button id="lowest-refresh-events" class="secondary-button compact-action" type="button">새로고침</button>
+                  </div>
+                  <form id="lowest-email-form" class="lowest-form email">
+                    <label>
+                      <span>수신 메일</span>
+                      <textarea id="lowest-email-recipients" rows="3" placeholder="manager@example.com"></textarea>
+                    </label>
+                    <button class="secondary-button" type="submit">저장</button>
+                  </form>
+                  <div id="lowest-email-status" class="lowest-muted">메일 설정 확인 전</div>
+                  <div class="lowest-watch-summary" id="lowest-watch-summary"></div>
+                </section>
+              </div>
+
+              <div class="price-result-toolbar">
+                <label>
+                  <span>검색개수</span>
+                  <select id="lowest-display-count">
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="300">300</option>
+                    <option value="500">500</option>
+                    <option value="700">700</option>
+                    <option value="1000">1000</option>
+                    <option value="50">50</option>
+                    <option value="30">30</option>
+                    <option value="10">10</option>
+                  </select>
+                </label>
+                <label class="lowest-search">
+                  <span>결과 검색</span>
+                  <input id="lowest-result-search" type="search" autocomplete="off" placeholder="상품명, 판매처" />
+                </label>
+                <label class="lowest-toggle">
+                  <input id="lowest-price-first" type="checkbox" checked />
+                  <span>가격비교 최저가 우선</span>
+                </label>
+                <label class="lowest-toggle">
+                  <input id="lowest-exclude-special" type="checkbox" checked />
+                  <span>중고/렌탈/해외직구 제외</span>
+                </label>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th><button class="table-sort-button" type="button" data-price-sort="name-asc">상품명</button></th>
+                    <th><button class="table-sort-button" type="button" data-price-sort="base-price-desc">기준가격</button></th>
+                    <th><button class="table-sort-button" type="button" data-price-sort="lowest-price-asc">최저가</button></th>
+                    <th><button class="table-sort-button active" type="button" data-price-sort="drop-rate-desc">하락률</button></th>
+                    <th><button class="table-sort-button" type="button" data-price-sort="drop-amount-desc">하락액</button></th>
+                    <th>판매처 사업자명</th>
+                    <th>판매처 URL</th>
+                    <th>비고</th>
+                  </tr>
+                </thead>
+                <tbody id="price-monitor-body"></tbody>
+              </table>
+            </div>
+            <div class="price-watch-grid">
+              <section class="lowest-section compact">
+                <h3>판매처별 인하 패턴</h3>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>판매처</th>
+                        <th>건수</th>
+                        <th>상품수</th>
+                        <th>평균 하락률</th>
+                        <th>최대 하락률</th>
+                        <th>집중 시간</th>
+                      </tr>
+                    </thead>
+                    <tbody id="lowest-seller-pattern-rows"></tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="lowest-section compact">
+                <h3>최근 감지 이벤트</h3>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>시간</th>
+                        <th>유형</th>
+                        <th>상품명</th>
+                        <th>판매처</th>
+                        <th>최저가</th>
+                        <th>URL</th>
+                      </tr>
+                    </thead>
+                    <tbody id="lowest-event-rows"></tbody>
+                  </table>
+                </div>
+              </section>
             </div>
           </article>
         </section>
@@ -342,11 +458,37 @@
                     <th>제품명</th>
                     <th>회전율</th>
                     <th>현재고</th>
-                    <th>재고금액(원가)</th>
+                    <th>재고금액</th>
                     <th>조치</th>
                   </tr>
                 </thead>
                 <tbody id="inventory-risk-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-view" data-panel="actions">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Action Queue</p>
+                <h2>업무 액션</h2>
+              </div>
+              <div class="panel-summary" id="action-summary">액션 항목 산출 중</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>항목</th>
+                    <th>기준</th>
+                    <th>우선순위</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody id="action-queue-body"></tbody>
               </table>
             </div>
           </article>
@@ -374,40 +516,6 @@
                   </tr>
                 </thead>
                 <tbody id="channel-sales-body"></tbody>
-              </table>
-            </div>
-          </article>
-        </section>
-
-        <section class="content-view" data-panel="reports">
-          <article class="panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Executive Report</p>
-                <h2>보고서</h2>
-              </div>
-            </div>
-            <div class="report-grid" id="report-summary-grid"></div>
-          </article>
-          <article class="panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Issue Summary</p>
-                <h2>주요 이슈</h2>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>구분</th>
-                    <th>항목</th>
-                    <th>기준</th>
-                    <th>우선순위</th>
-                    <th>상태</th>
-                  </tr>
-                </thead>
-                <tbody id="report-issue-body"></tbody>
               </table>
             </div>
           </article>
@@ -453,7 +561,7 @@
             <p id="inventory-modal-subtitle">제품 단가순으로 정렬됩니다.</p>
           </div>
           <div class="sort-control modal-sort" aria-label="재고 상세 정렬">
-            <button class="active" type="button" data-modal-sort="amount-desc">재고금액(원가)순</button>
+            <button class="active" type="button" data-modal-sort="amount-desc">재고금액순</button>
             <button type="button" data-modal-sort="turnover-desc">회전율 높은순</button>
             <button type="button" data-modal-sort="turnover-asc">회전율 낮은순</button>
           </div>
@@ -469,7 +577,7 @@
                 <th>회전율</th>
                 <th>현재고</th>
                 <th>판매가</th>
-                <th>재고금액(원가)</th>
+                <th>재고금액</th>
               </tr>
             </thead>
             <tbody id="inventory-modal-body"></tbody>
@@ -478,8 +586,8 @@
       </section>
     </div>
 
-    <script src="./auth-config.js?v=2026062408"></script>
-    <script src="./auth.js?v=2026062408"></script>
-    <script src="./app.js?v=2026062407"></script>
+    <script src="./auth-config.js?v=2026060802"></script>
+    <script src="./auth.js?v=2026060804"></script>
+    <script src="./app.js?v=2026062402"></script>
   </body>
 </html>

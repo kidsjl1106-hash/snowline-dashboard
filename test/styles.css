@@ -31,8 +31,7 @@ body {
 }
 
 button,
-input,
-textarea {
+input {
   font: inherit;
 }
 
@@ -46,8 +45,6 @@ textarea {
 .sidebar {
   position: sticky;
   top: 0;
-  display: flex;
-  flex-direction: column;
   height: 100vh;
   min-width: 0;
   padding: 24px 18px;
@@ -134,7 +131,7 @@ textarea {
 .sheet-note {
   position: sticky;
   bottom: 18px;
-  margin-top: auto;
+  margin-top: 18px;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -145,16 +142,6 @@ textarea {
   color: var(--muted);
   font-size: 12px;
   margin-bottom: 5px;
-}
-
-#auth-user-bar.auth-user-bar {
-  position: static !important;
-  right: auto !important;
-  bottom: auto !important;
-  left: auto !important;
-  z-index: auto !important;
-  width: 100%;
-  box-shadow: none !important;
 }
 
 .workspace {
@@ -262,32 +249,6 @@ h2 {
   color: #ffffff;
   font-weight: 900;
   cursor: pointer;
-}
-
-.secondary-button {
-  min-height: 43px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 15px;
-  background: #ffffff;
-  color: var(--text);
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.danger-button {
-  min-height: 43px;
-  border: 1px solid rgba(220, 38, 38, 0.35);
-  border-radius: 8px;
-  padding: 0 15px;
-  background: #ffffff;
-  color: var(--danger);
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.danger-button:hover {
-  background: rgba(220, 38, 38, 0.08);
 }
 
 .status-strip {
@@ -424,40 +385,6 @@ h2 {
   color: var(--accent-2);
   font-size: 12px;
   font-weight: 900;
-}
-
-.cs-search-tools {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.cs-customer-search {
-  display: grid;
-  gap: 6px;
-  min-width: 190px;
-}
-
-.cs-customer-search span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.cs-customer-search input {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 9px 10px;
-  background: #ffffff;
-  color: var(--text);
-  outline: none;
-}
-
-.cs-customer-search input:focus {
-  border-color: var(--accent);
 }
 
 .table-sort-button {
@@ -716,73 +643,6 @@ h2 {
   font-weight: 800;
 }
 
-.cs-entry-form {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding: 0 18px 18px;
-}
-
-.cs-entry-form label {
-  min-width: 0;
-}
-
-.cs-entry-form span {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.cs-entry-form input,
-.cs-entry-form textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 11px;
-  background: #ffffff;
-  color: var(--text);
-  outline: none;
-}
-
-.cs-entry-form input:focus,
-.cs-entry-form textarea:focus {
-  border-color: var(--accent);
-}
-
-.cs-entry-form textarea {
-  resize: vertical;
-}
-
-.cs-entry-form .wide-field {
-  grid-column: span 3;
-}
-
-.cs-entry-actions {
-  grid-column: span 3;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.form-status {
-  min-height: 20px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.form-status.ready {
-  color: var(--safe);
-}
-
-.form-status.error {
-  color: var(--danger);
-}
-
 .table-wrap {
   width: 100%;
   min-width: 0;
@@ -822,15 +682,6 @@ td.cs-content {
   max-width: 420px;
   white-space: normal;
   line-height: 1.45;
-}
-
-.table-actions {
-  white-space: nowrap;
-}
-
-.compact-button {
-  padding: 7px 10px;
-  font-size: 12px;
 }
 
 .progress-cell {
@@ -973,6 +824,189 @@ td.cs-content {
   font-weight: 800;
 }
 
+.price-console {
+  display: grid;
+  gap: 14px;
+  padding: 0 18px 18px;
+}
+
+.price-console-bar,
+.price-result-toolbar,
+.lowest-inline-actions {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.price-api-field {
+  flex: 1 1 320px;
+  min-width: min(100%, 260px);
+}
+
+.price-api-status,
+.lowest-muted {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.price-api-status[data-status="ready"] {
+  color: var(--safe);
+}
+
+.price-api-status[data-status="warn"],
+.price-api-status[data-status="error"] {
+  color: var(--danger);
+}
+
+.price-work-grid,
+.price-watch-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 14px;
+}
+
+.lowest-section {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  overflow: hidden;
+}
+
+.lowest-section.compact {
+  padding-bottom: 0;
+}
+
+.lowest-section h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.lowest-section-head {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lowest-form,
+.lowest-bulk,
+.lowest-inline-actions,
+.lowest-muted,
+.lowest-watch-summary {
+  padding: 12px 14px 0;
+}
+
+.lowest-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(120px, 0.7fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.lowest-form.email {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.lowest-bulk {
+  display: grid;
+  gap: 6px;
+}
+
+.lowest-file-input {
+  width: min(260px, 100%);
+  min-height: 36px;
+  padding: 7px;
+}
+
+.lowest-product-table {
+  margin: 12px 14px 14px;
+  width: calc(100% - 28px);
+}
+
+.lowest-product-table table {
+  min-width: 420px;
+}
+
+.lowest-watch-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(84px, 1fr));
+  gap: 8px;
+  padding-bottom: 14px;
+}
+
+.lowest-watch-summary div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.lowest-watch-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.lowest-watch-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.price-result-toolbar {
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.price-result-toolbar label {
+  min-width: 120px;
+}
+
+.price-result-toolbar .lowest-search {
+  flex: 1 1 260px;
+}
+
+.lowest-toggle {
+  min-height: 38px;
+  display: inline-flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 7px;
+}
+
+.lowest-toggle input {
+  width: 17px;
+  min-height: 17px;
+  accent-color: var(--accent);
+}
+
+.lowest-toggle span {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.compact-action {
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1067,7 +1101,9 @@ td.cs-content {
 
   .kpi-grid,
   .section-grid,
-  .report-grid {
+  .report-grid,
+  .price-work-grid,
+  .price-watch-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1090,11 +1126,6 @@ td.cs-content {
   .panel-head,
   .modal-head {
     flex-direction: column;
-  }
-
-  .cs-search-tools,
-  .cs-customer-search {
-    width: 100%;
   }
 
   .sort-control {
@@ -1145,18 +1176,27 @@ td.cs-content {
   .section-grid,
   .achievement-table-grid,
   .inventory-grid,
-  .report-grid {
+  .report-grid,
+  .price-work-grid,
+  .price-watch-grid,
+  .lowest-form,
+  .lowest-form.email {
     grid-template-columns: 1fr;
   }
 
-  .cs-entry-form {
-    grid-template-columns: 1fr;
+  .price-console {
     padding: 0 14px 14px;
   }
 
-  .cs-entry-form .wide-field,
-  .cs-entry-actions {
-    grid-column: span 1;
+  .price-console-bar,
+  .price-result-toolbar,
+  .lowest-inline-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lowest-watch-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .kpi-grid {
