@@ -609,11 +609,22 @@ function parseInventoryProducts(rows) {
         turnover,
       };
     })
-    .filter((row) => isSnowlineProductCode(row.code) && row.name && row.stock > 0 && isInventoryStatus(row.status));
+    .filter(
+      (row) =>
+        isSnowlineProductCode(row.code) &&
+        row.name &&
+        !isExcludedInventoryProductName(row.name) &&
+        row.stock > 0 &&
+        isInventoryStatus(row.status),
+    );
 }
 
 function isSnowlineProductCode(code) {
   return String(code || "").trim().toUpperCase().startsWith("SN");
+}
+
+function isExcludedInventoryProductName(name) {
+  return String(name || "").includes("이지캠핑");
 }
 
 function parseCs(rows) {
