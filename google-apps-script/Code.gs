@@ -69,29 +69,53 @@ function doPost(e) {
   try {
     ensureSheets_();
     const payload = JSON.parse(e.postData && e.postData.contents ? e.postData.contents : "{}");
-    const action = payload.action;
-
-    if (action === "signup") return json_(signup_(payload));
-    if (action === "login") return json_(login_(payload));
-    if (action === "me") return json_(me_(payload));
-    if (action === "dashboard") return json_(dashboard_(payload));
-    if (action === "sheet") return json_(sheet_(payload));
-    if (action === "salesSummary") return json_(salesSummary_(payload));
-    if (action === "inventorySummary") return json_(inventorySummary_(payload));
-    if (action === "csRecords") return json_(csRecords_(payload));
-    if (action === "addCs") return json_(addCs_(payload));
-    if (action === "updateCs") return json_(updateCs_(payload));
-    if (action === "deleteCs") return json_(deleteCs_(payload));
-    if (action === "listPending") return json_(listPending_(payload));
-    if (action === "listUsers") return json_(listUsers_(payload));
-    if (action === "setUserStatus") return json_(setUserStatus_(payload));
-    if (action === "approveUser") return json_(reviewUser_(payload, "approved"));
-    if (action === "rejectUser") return json_(reviewUser_(payload, "rejected"));
-
-    throw new Error("지원하지 않는 요청입니다.");
+    return json_(handleAction_(payload));
   } catch (error) {
     return json_({ ok: false, error: error.message || "요청 처리 중 오류가 발생했습니다." });
   }
+}
+
+function doGet(e) {
+  const callback = String(e && e.parameter && e.parameter.callback || "");
+  try {
+    ensureSheets_();
+    const payload = parseJsonpPayload_(e);
+    return jsonp_(callback, handleAction_(payload));
+  } catch (error) {
+    return jsonp_(callback, { ok: false, error: error.message || "요청 처리 중 오류가 발생했습니다." });
+  }
+}
+
+function handleAction_(payload) {
+  const action = payload.action;
+
+  if (action === "signup") return signup_(payload);
+  if (action === "login") return login_(payload);
+  if (action === "me") return me_(payload);
+  if (action === "dashboard") return dashboard_(payload);
+  if (action === "sheet") return sheet_(payload);
+  if (action === "salesSummary") return salesSummary_(payload);
+  if (action === "inventorySummary") return inventorySummary_(payload);
+  if (action === "csRecords") return csRecords_(payload);
+  if (action === "addCs") return addCs_(payload);
+  if (action === "updateCs") return updateCs_(payload);
+  if (action === "deleteCs") return deleteCs_(payload);
+  if (action === "listPending") return listPending_(payload);
+  if (action === "listUsers") return listUsers_(payload);
+  if (action === "setUserStatus") return setUserStatus_(payload);
+  if (action === "approveUser") return reviewUser_(payload, "approved");
+  if (action === "rejectUser") return reviewUser_(payload, "rejected");
+
+  throw new Error("지원하지 않는 요청입니다.");
+}
+
+function parseJsonpPayload_(e) {
+  const encoded = String(e && e.parameter && e.parameter.payload || "");
+  if (!encoded) return {};
+  const normalized = encoded.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = "=".repeat((4 - normalized.length % 4) % 4);
+  const bytes = Utilities.base64Decode(normalized + padding);
+  return JSON.parse(Utilities.newBlob(bytes).getDataAsString("UTF-8"));
 }
 
 function signup_(payload) {
@@ -772,4 +796,15 @@ function json_(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonp_(callback, payload) {
+  if (!/^[A-Za-z_$][0-9A-Za-z_$]*(\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(callback)) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: "잘못된 callback 입니다." }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService
+    .createTextOutput(`${callback}(${JSON.stringify(payload)});`)
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
