@@ -542,6 +542,46 @@ function parseCsv(text) {
   return rows.map((cells) => cells.map((cell) => cell.trim()));
 }
 
+function parseFamilySalePriceItems(rows = []) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+
+  const headerIndex = rows.findIndex((row) =>
+    row.some((cell) => /상품|제품|품명|product|name/i.test(String(cell || ""))),
+  );
+  const header = rows[Math.max(headerIndex, 0)] || [];
+  const dataRows = rows.slice(Math.max(headerIndex, 0) + 1);
+  const normalizedHeaders = header.map((cell) => String(cell || "").toLowerCase().replace(/\s+/g, ""));
+  const findColumn = (...terms) =>
+    normalizedHeaders.findIndex((headerText) => terms.some((term) => headerText.includes(term.toLowerCase())));
+
+  const nameIndex = findColumn("상품", "제품", "품명", "product", "name");
+  const baseIndex = findColumn("기준", "정상", "판매가", "base", "original");
+  const lowestIndex = findColumn("최저", "할인가", "lowest", "sale");
+  const sellerIndex = findColumn("판매처", "업체", "seller", "mall");
+  const urlIndex = findColumn("url", "링크", "link");
+  const noteIndex = findColumn("비고", "메모", "note");
+
+  return dataRows
+    .map((row) => {
+      const numericValues = row.map(toNumber).filter((value) => value > 0);
+      const basePrice = baseIndex >= 0 ? toNumber(row[baseIndex]) : Math.max(0, ...numericValues);
+      const detectedLowest = lowestIndex >= 0 ? toNumber(row[lowestIndex]) : Math.min(...numericValues);
+      const lowestPrice = Number.isFinite(detectedLowest) && detectedLowest > 0 ? detectedLowest : basePrice;
+      const dropAmount = Math.max(0, basePrice - lowestPrice);
+      return {
+        name: String(row[nameIndex >= 0 ? nameIndex : 0] || "").trim(),
+        basePrice,
+        lowestPrice,
+        dropRate: basePrice ? dropAmount / basePrice : 0,
+        dropAmount,
+        seller: String(row[sellerIndex >= 0 ? sellerIndex : -1] || "").trim(),
+        url: String(row[urlIndex >= 0 ? urlIndex : -1] || "").trim(),
+        note: String(row[noteIndex >= 0 ? noteIndex : -1] || "").trim(),
+      };
+    })
+    .filter((item) => item.name && item.basePrice);
+}
+
 function parseInventory(products = []) {
   const counts = products.reduce((acc, product) => {
     acc[product.status] = (acc[product.status] || 0) + 1;
