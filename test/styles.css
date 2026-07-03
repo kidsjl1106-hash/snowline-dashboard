@@ -1460,3 +1460,9 @@ td.cs-content {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+.nav-tab[data-view="price"],
+.nav-tab[data-view="actions"],
+.content-view[data-panel="price"],
+.content-view[data-panel="actions"] {
+  display: none !important;
+}
