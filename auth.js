@@ -277,8 +277,7 @@
   }
 
   function shouldUseJsonpFallback(payload, error) {
-    const readOnlyActions = new Set(["login", "me", "dashboard", "sheet", "salesSummary", "inventorySummary", "csRecords", "listPending", "listUsers"]);
-    return readOnlyActions.has(payload?.action) && (error?.name === "AbortError" || /Failed to fetch|NetworkError/i.test(error?.message || ""));
+    return payload?.action === "login" && (error?.name === "AbortError" || /Failed to fetch|NetworkError/i.test(error?.message || ""));
   }
 
   function callApiJsonp(payload) {

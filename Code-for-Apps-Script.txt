@@ -80,6 +80,7 @@ function doGet(e) {
   try {
     ensureSheets_();
     const payload = parseJsonpPayload_(e);
+    if (payload.action !== "login") throw new Error("GET 인증 요청은 로그인만 허용됩니다.");
     return jsonp_(callback, handleAction_(payload));
   } catch (error) {
     return jsonp_(callback, { ok: false, error: error.message || "요청 처리 중 오류가 발생했습니다." });
@@ -647,7 +648,12 @@ function normalizeUserId_(value) {
 }
 
 function cleanText_(value) {
-  return String(value || "").trim().replace(/\s+/g, " ");
+  return String(value || "")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/[<>]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 1000);
 }
 
 function validateUserId_(value) {
