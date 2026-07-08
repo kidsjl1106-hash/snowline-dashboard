@@ -149,13 +149,35 @@ const els = {
 initBuildInfo();
 setupLowestPriceIntegration();
 
+function activateView(view, options = {}) {
+  const targetButton = Array.from(document.querySelectorAll(".nav-tab")).find((tab) => tab.dataset.view === view);
+  const targetPanel = Array.from(document.querySelectorAll(".content-view")).find((panel) => panel.dataset.panel === view);
+  if (!targetButton || !targetPanel) return false;
+
+  document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.remove("active"));
+  document.querySelectorAll(".content-view").forEach((panel) => panel.classList.remove("active"));
+  targetButton.classList.add("active");
+  targetPanel.classList.add("active");
+  if (view === "members") loadMembers();
+
+  if (options.updateUrl) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", view);
+    window.history.replaceState({}, "", url);
+  }
+
+  return true;
+}
+
+function activateInitialView() {
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get("view") || window.location.hash.replace(/^#/, "");
+  if (view) activateView(view);
+}
+
 document.querySelectorAll(".nav-tab").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.remove("active"));
-    document.querySelectorAll(".content-view").forEach((panel) => panel.classList.remove("active"));
-    button.classList.add("active");
-    document.querySelector(`[data-panel="${button.dataset.view}"]`).classList.add("active");
-    if (button.dataset.view === "members") loadMembers();
+    activateView(button.dataset.view, { updateUrl: true });
   });
 });
 
@@ -260,6 +282,7 @@ function startDashboard(user) {
   setupAdminView(user);
   setDefaultCsDate();
   setDefaultCsManager();
+  activateInitialView();
   loadDashboard();
 }
 

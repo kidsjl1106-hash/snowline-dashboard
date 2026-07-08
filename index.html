@@ -8,12 +8,19 @@
     <meta http-equiv="Expires" content="0" />
     <meta name="referrer" content="no-referrer" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SNOWLINE" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' https://script.google.com; style-src 'self'; img-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests"
+      content="default-src 'self'; script-src 'self' https://script.google.com; style-src 'self'; img-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests"
     />
     <title>SNOWLINE 영업 대시보드 | GitHub Upload</title>
     <link rel="icon" href="./assets/logo.png?v=2026060701" />
+    <link rel="manifest" href="./manifest.webmanifest?v=2026070801" />
+    <link rel="apple-touch-icon" href="./assets/icon-180.png?v=2026070801" />
     <link rel="stylesheet" href="./auth.css?v=2026062301" />
     <link rel="stylesheet" href="./styles.css?v=2026062303" />
   </head>
@@ -485,6 +492,7 @@
 
     <script src="./auth-config.js?v=2026070301"></script>
     <script src="./auth.js?v=2026070301"></script>
-    <script src="./app.js?v=2026062407"></script>
+    <script src="./app.js?v=2026070801"></script>
+    <script src="./pwa.js?v=2026070801" data-service-worker="./sw.js" data-scope="./"></script>
   </body>
 </html>

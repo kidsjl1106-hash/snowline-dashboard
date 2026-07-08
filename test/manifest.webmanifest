@@ -1,0 +1,53 @@
+{
+  "id": "/snowline-dashboard/test/",
+  "name": "SNOWLINE Dashboard Test",
+  "short_name": "SNOWLINE TEST",
+  "description": "SNOWLINE dashboard test app",
+  "lang": "ko-KR",
+  "start_url": "/snowline-dashboard/test/?source=pwa",
+  "scope": "/snowline-dashboard/test/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait",
+  "theme_color": "#0f172a",
+  "background_color": "#ffffff",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/snowline-dashboard/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/snowline-dashboard/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/snowline-dashboard/assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "통합 현황",
+      "short_name": "현황",
+      "url": "/snowline-dashboard/test/?view=overview&source=shortcut",
+      "icons": [{ "src": "/snowline-dashboard/assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "재고 위험",
+      "short_name": "재고",
+      "url": "/snowline-dashboard/test/?view=inventory-risk&source=shortcut",
+      "icons": [{ "src": "/snowline-dashboard/assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "고객상담",
+      "short_name": "CS",
+      "url": "/snowline-dashboard/test/?view=cs&source=shortcut",
+      "icons": [{ "src": "/snowline-dashboard/assets/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
