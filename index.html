@@ -22,7 +22,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=2026070801" />
     <link rel="apple-touch-icon" href="./assets/icon-180.png?v=2026070801" />
     <link rel="stylesheet" href="./auth.css?v=2026062301" />
-    <link rel="stylesheet" href="./styles.css?v=2026062303" />
+    <link rel="stylesheet" href="./styles.css?v=2026072001" />
   </head>
   <body class="auth-locked">
     <div class="app-shell">
@@ -267,6 +267,12 @@
                   <span>고객명 조회</span>
                   <input id="cs-customer-search" type="search" placeholder="고객명 입력" autocomplete="off" />
                 </label>
+                <label class="cs-customer-search">
+                  <span>월별 조회</span>
+                  <select id="cs-month-filter" aria-label="CS 월별 조회">
+                    <option value="">전체 월</option>
+                  </select>
+                </label>
                 <button class="secondary-button compact-button" id="cs-customer-clear" type="button">초기화</button>
                 <span class="panel-summary" id="cs-search-summary">전체 상담내역</span>
               </div>
@@ -492,7 +498,7 @@
 
     <script src="./auth-config.js?v=2026070301"></script>
     <script src="./auth.js?v=2026070301"></script>
-    <script src="./app.js?v=2026070801"></script>
+    <script src="./app.js?v=2026072001"></script>
     <script src="./pwa.js?v=2026070801" data-service-worker="./sw.js" data-scope="./"></script>
   </body>
 </html>

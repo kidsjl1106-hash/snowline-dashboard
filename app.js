@@ -33,6 +33,7 @@ const BUILD_INFO = {
 const state = {
   query: "",
   csCustomerQuery: "",
+  csMonthFilter: "",
   selectedMonth: new Date().getMonth() + 1,
   productSort: "amount-desc",
   modalSort: "amount-desc",
@@ -66,6 +67,7 @@ const els = {
   csEntryMessage: document.querySelector("#cs-entry-message"),
   csSubmitButton: document.querySelector("#cs-submit-button"),
   csCustomerSearch: document.querySelector("#cs-customer-search"),
+  csMonthFilter: document.querySelector("#cs-month-filter"),
   csCustomerClear: document.querySelector("#cs-customer-clear"),
   csSearchSummary: document.querySelector("#cs-search-summary"),
   inventoryRiskSummary: document.querySelector("#inventory-risk-summary"),
@@ -132,9 +134,15 @@ els.csCustomerSearch?.addEventListener("input", (event) => {
   state.csCustomerQuery = event.target.value.trim().toLowerCase();
   render();
 });
+els.csMonthFilter?.addEventListener("change", (event) => {
+  state.csMonthFilter = event.target.value;
+  render();
+});
 els.csCustomerClear?.addEventListener("click", () => {
   state.csCustomerQuery = "";
+  state.csMonthFilter = "";
   if (els.csCustomerSearch) els.csCustomerSearch.value = "";
+  if (els.csMonthFilter) els.csMonthFilter.value = "";
   render();
 });
 els.csEntryForm?.addEventListener("reset", () => {
@@ -697,6 +705,7 @@ function render() {
 
   renderKpis();
   renderMonthToggle();
+  renderCsMonthFilter();
   renderTeamBars(teams);
   renderAchievementTables(teams);
   renderInventory();
@@ -846,18 +855,57 @@ function renderCs(rows) {
 }
 
 function filterCsRows(rows) {
-  if (!state.csCustomerQuery) return rows;
-  return rows.filter((row) => String(row.customer || "").toLowerCase().includes(state.csCustomerQuery));
+  let filtered = rows;
+  if (state.csMonthFilter) {
+    filtered = filtered.filter((row) => getCsMonthKey(row.date) === state.csMonthFilter);
+  }
+  if (state.csCustomerQuery) {
+    filtered = filtered.filter((row) => String(row.customer || "").toLowerCase().includes(state.csCustomerQuery));
+  }
+  return filtered;
 }
 
 function renderCsSearchSummary(rows) {
   if (!els.csSearchSummary) return;
   const customer = els.csCustomerSearch?.value?.trim();
-  if (customer) {
-    els.csSearchSummary.textContent = `${customer} 상담내역 ${formatNumber(rows.length)}건`;
-    return;
+  const monthLabel = state.csMonthFilter ? formatCsMonthLabel(state.csMonthFilter) : "";
+  const prefix = [monthLabel, customer].filter(Boolean).join(" · ");
+  els.csSearchSummary.textContent = `${prefix || "전체"} 상담내역 ${formatNumber(rows.length)}건`;
+}
+
+function renderCsMonthFilter() {
+  if (!els.csMonthFilter) return;
+  const months = [...new Set(state.cs.map((row) => getCsMonthKey(row.date)).filter(Boolean))].sort().reverse();
+  if (state.csMonthFilter && !months.includes(state.csMonthFilter)) {
+    state.csMonthFilter = "";
   }
-  els.csSearchSummary.textContent = `전체 상담내역 ${formatNumber(state.cs.length)}건`;
+
+  const options = [
+    `<option value="">전체 월</option>`,
+    ...months.map(
+      (month) =>
+        `<option value="${escapeAttribute(month)}"${month === state.csMonthFilter ? " selected" : ""}>${escapeHtml(formatCsMonthLabel(month))}</option>`,
+    ),
+  ];
+  els.csMonthFilter.innerHTML = options.join("");
+}
+
+function getCsMonthKey(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const textMatch = raw.match(/(\d{4})\D+(\d{1,2})/);
+  if (textMatch) return `${textMatch[1]}-${String(Number(textMatch[2])).padStart(2, "0")}`;
+
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatCsMonthLabel(monthKey) {
+  const [year, month] = String(monthKey || "").split("-");
+  if (!year || !month) return monthKey || "";
+  return `${year}년 ${Number(month)}월`;
 }
 
 async function deleteCs(rowNumber) {

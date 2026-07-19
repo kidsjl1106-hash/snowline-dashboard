@@ -446,7 +446,8 @@ h2 {
   font-weight: 900;
 }
 
-.cs-customer-search input {
+.cs-customer-search input,
+.cs-customer-search select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -456,7 +457,8 @@ h2 {
   outline: none;
 }
 
-.cs-customer-search input:focus {
+.cs-customer-search input:focus,
+.cs-customer-search select:focus {
   border-color: var(--accent);
 }
 
