@@ -76,15 +76,7 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  const callback = String(e && e.parameter && e.parameter.callback || "");
-  try {
-    ensureSheets_();
-    const payload = parseJsonpPayload_(e);
-    if (payload.action !== "login") throw new Error("GET 인증 요청은 로그인만 허용됩니다.");
-    return jsonp_(callback, handleAction_(payload));
-  } catch (error) {
-    return jsonp_(callback, { ok: false, error: error.message || "요청 처리 중 오류가 발생했습니다." });
-  }
+  return json_({ ok: false, error: "GET authentication is not allowed. Use POST requests only." });
 }
 
 function handleAction_(payload) {
@@ -108,15 +100,6 @@ function handleAction_(payload) {
   if (action === "rejectUser") return reviewUser_(payload, "rejected");
 
   throw new Error("지원하지 않는 요청입니다.");
-}
-
-function parseJsonpPayload_(e) {
-  const encoded = String(e && e.parameter && e.parameter.payload || "");
-  if (!encoded) return {};
-  const normalized = encoded.replace(/-/g, "+").replace(/_/g, "/");
-  const padding = "=".repeat((4 - normalized.length % 4) % 4);
-  const bytes = Utilities.base64Decode(normalized + padding);
-  return JSON.parse(Utilities.newBlob(bytes).getDataAsString("UTF-8"));
 }
 
 function signup_(payload) {
@@ -802,15 +785,4 @@ function json_(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
-}
-
-function jsonp_(callback, payload) {
-  if (!/^[A-Za-z_$][0-9A-Za-z_$]*(\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(callback)) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, error: "잘못된 callback 입니다." }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  return ContentService
-    .createTextOutput(`${callback}(${JSON.stringify(payload)});`)
-    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }

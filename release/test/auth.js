@@ -254,9 +254,6 @@
       const text = await response.text();
       return parseApiResponse(text, response.ok);
     } catch (error) {
-      if (shouldUseJsonpFallback(payload, error)) {
-        return callApiJsonp(payload);
-      }
       throw error;
     }
   }
@@ -274,59 +271,6 @@
     }
 
     return result;
-  }
-
-  function shouldUseJsonpFallback(payload, error) {
-    const readOnlyActions = new Set(["login", "me", "dashboard", "sheet", "salesSummary", "inventorySummary", "csRecords", "listPending", "listUsers"]);
-    return readOnlyActions.has(payload?.action) && (error?.name === "AbortError" || /Failed to fetch|NetworkError/i.test(error?.message || ""));
-  }
-
-  function callApiJsonp(payload) {
-    return new Promise((resolve, reject) => {
-      const callbackName = `__snowlineJsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const script = document.createElement("script");
-      const timeoutId = window.setTimeout(() => {
-        cleanup();
-        reject(new Error("서버 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요."));
-      }, requestTimeoutMs);
-
-      function cleanup() {
-        window.clearTimeout(timeoutId);
-        delete window[callbackName];
-        script.remove();
-      }
-
-      window[callbackName] = (result) => {
-        cleanup();
-        try {
-          if (!result?.ok) throw new Error(result?.error || "요청을 처리하지 못했습니다.");
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      script.onerror = () => {
-        cleanup();
-        reject(new Error("로그인 서버에 연결하지 못했습니다."));
-      };
-      script.src = `${apiUrl}${apiUrl.includes("?") ? "&" : "?"}callback=${encodeURIComponent(callbackName)}&payload=${encodeURIComponent(encodePayload(payload))}&_=${Date.now()}`;
-      document.head.appendChild(script);
-    });
-  }
-
-  function encodePayload(payload) {
-    const json = JSON.stringify(payload);
-    let binary = "";
-    if (typeof TextEncoder !== "undefined") {
-      const bytes = new TextEncoder().encode(json);
-      bytes.forEach((byte) => {
-        binary += String.fromCharCode(byte);
-      });
-    } else {
-      binary = unescape(encodeURIComponent(json));
-    }
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
   }
 
   function fetchWithTimeout(url, options, timeoutMs = requestTimeoutMs) {
